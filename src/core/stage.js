@@ -4,9 +4,11 @@
  * @typedef {Object} Stage
  * @property {string} id               registry key, e.g. 'stage-1'
  * @property {number} worldWidth       world width in px (camera clamp, knight bounds)
+ * @property {number} [resolution]     canvas size as a multiple of 320×180 (default 1; Stage 5 uses 3
+ *                                     and draws its own HUD at 320×180, scaled up)
  * @property {(game: Game) => void} enter   build world + slices; game gives {input, goTo}
  * @property {(dt: number) => void} update  fixed-step update (dt = 1/60 s)
- * @property {(ctx: CanvasRenderingContext2D) => void} render  draw the whole 320×180 frame
+ * @property {(ctx: CanvasRenderingContext2D) => void} render  draw the whole frame (320×180 × resolution)
  * @property {() => void} exit         tear down (unsubscribe events etc.)
  *
  * @typedef {Object} Game

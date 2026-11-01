@@ -1,4 +1,4 @@
-import { GROUND_Y, KNIGHT_W, VIEW_W } from '../core/constants.js';
+import { GROUND_Y, KNIGHT_W, VIEW_W, VIEW_H } from '../core/constants.js';
 import { drawText, measureText } from '../core/font.js';
 import { rect, line, withAlpha, strokeRect } from '../core/draw.js';
 import { drawTiny, tinyWidth } from '../battle/hud.js';
@@ -69,7 +69,8 @@ export function createAbilities(world, { battle, unlocked: startUnlocked = 0 }) 
   let aimX = 0;
   let aimY = 0;
   const volley = []; // {at, x} arrows still to loose
-  const lightning = createLightning({ battle, damage: LIGHTNING_DAMAGE, radius: LIGHTNING_HALF });
+  // the bolts come down from the top of the view (higher up when the camera looks up / zooms out)
+  const lightning = createLightning({ battle, damage: LIGHTNING_DAMAGE, radius: LIGHTNING_HALF, skyY: () => world.camera.y - 6 });
   sfx.preload(); // the thunder recording, ready before the first strike
   let t = 0;
   let blessedAt = -99; // t when Blessed Touch was last cast
@@ -116,9 +117,11 @@ export function createAbilities(world, { battle, unlocked: startUnlocked = 0 }) 
 
   /** The mouse in world coords, x clamped so an area of `half` px either side stays in the world. */
   function aimAt(half) {
+    const cam = world.camera;
     const mx = Math.max(0, Math.min(VIEW_W - 1, input.mouse.x));
-    aimX = Math.max(half, Math.min(world.worldWidth - half, world.camera.x + mx));
-    aimY = Math.max(0, Math.min(GROUND_Y, input.mouse.y));
+    const my = Math.max(0, Math.min(VIEW_H - 1, input.mouse.y));
+    aimX = Math.max(half, Math.min(world.worldWidth - half, cam.toWorldX(mx)));
+    aimY = Math.max(cam.y, Math.min(GROUND_Y, cam.toWorldY(my)));
   }
 
   function update(dt) {
@@ -204,7 +207,8 @@ export function createAbilities(world, { battle, unlocked: startUnlocked = 0 }) 
       if (g.burst > 0) {
         // the emergence: a pillar of light up through them + spokes radiating out
         const pw = Math.max(1, Math.round(10 * g.burst));
-        withAlpha(ctx, g.burst * 0.6, () => rect(ctx, c.x - Math.floor(pw / 2), 0, pw, GROUND_Y - 0, '#fff6c0'));
+        const top = Math.min(0, world.camera.y);
+        withAlpha(ctx, g.burst * 0.6, () => rect(ctx, c.x - Math.floor(pw / 2), top, pw, GROUND_Y - top, '#fff6c0'));
         const len = 10 + (1 - g.burst) * 22;
         for (let i = 0; i < 8; i++) {
           const a = (i / 8) * Math.PI * 2 + t * 0.8;
@@ -287,7 +291,7 @@ export function createAbilities(world, { battle, unlocked: startUnlocked = 0 }) 
       }
     }
     const label = 'Click to fire';
-    const lx = Math.max(world.camera.x + 2, Math.min(world.camera.x + VIEW_W - 2 - measureText(label), Math.round(aimX - measureText(label) / 2)));
+    const lx = Math.max(world.camera.x + 2, Math.min(world.camera.x + world.camera.viewW - 2 - measureText(label), Math.round(aimX - measureText(label) / 2)));
     drawText(ctx, label, lx, top - 11, { color: '#fff6d8', outline: OUTLINE });
   }
 

@@ -13,6 +13,8 @@ const PLAYER_DAMAGE = 10; // a zombie (30 HP) takes 3 sword hits or 3 arrows
 const FIREBALL_DAMAGE = 8;
 const SWORD_REACH = 22; // px in front of the knight's centre that a Strike reaches
 const SWORD_BEHIND = 4; // …and this far behind it (point-blank)
+const SWORD_REACH_MOUNTED = 30; // on horseback: out past the horse's head
+const SWORD_BEHIND_MOUNTED = 12; // …and down over the horse's shoulder
 const RAGE_MULT = 5; // Potion of Rage: the Brave Knight's own hits do 5× damage
 const WIN_DELAY = 1.2; // s after the last monster falls before onWon()
 const BAR_GAP = 3; // px between a head and the bottom of its health bar
@@ -48,7 +50,7 @@ BTN.y = 100;
  * @param {{
  *   allies:{archer:number, mage:number, holy:number},            // centre x of each ally
  *   monsters:{zombies:number[], werewolf:number, darkMage:number}  // Stage 3's pack (starting centre x)
- *           | {kind:'crawler'|'golem'|'ptero', x:number}[],          // or a roster (cave-monsters.js)
+ *           | {kind:string, x:number}[],  // or a roster: cave-monsters.js, castle-monsters.js, 'werewolf'
  *   dialogue:{isOpen():boolean},
  *   following?:boolean,  // the allies start out following him (a Stage after the battle)
  *   floorAt?:(x:number, y:number)=>number,  // floor under world x (a ledge); default GROUND_Y
@@ -89,6 +91,9 @@ export function createBattle(world, { allies: allyXs, monsters: monsterXs, dialo
     worldWidth: world.worldWidth,
     floorAt,
     ledge,
+    /** World x range the allies keep to while following (setAllyBounds: a gate shut behind them). */
+    allyBounds: { lo: -Infinity, hi: Infinity },
+    rallyX: null, // a spot the following allies run to (a boss's safe zone), or null
     fireballs: null,
     aliveEnemies: () => monsters.list.filter((e) => !e.dead),
     targetableHeroes,
@@ -201,11 +206,15 @@ export function createBattle(world, { allies: allyXs, monsters: monsterXs, dialo
     strikePending = false;
     const cx = k.x + k.width / 2;
     const f = k.facing;
-    const lo = f === 1 ? cx - SWORD_BEHIND : cx - SWORD_REACH;
-    const hi = f === 1 ? cx + SWORD_REACH : cx + SWORD_BEHIND;
-    // the blade sweeps from a little above his head down to his knees (jump clean over them and it misses)
+    // mounted, the blade sweeps from high in the saddle all the way down to the ground and
+    // past the horse's head, so anything under (or in front of) his sword is hit
+    const reach = k.mounted ? SWORD_REACH_MOUNTED : SWORD_REACH;
+    const behind = k.mounted ? SWORD_BEHIND_MOUNTED : SWORD_BEHIND;
+    const lo = f === 1 ? cx - behind : cx - reach;
+    const hi = f === 1 ? cx + reach : cx + behind;
+    // on foot the blade sweeps from a little above his head down to his knees (jump clean over them and it misses)
     const top = k.y - k.lift - 30;
-    const bottom = k.y - k.lift - 4;
+    const bottom = k.mounted ? k.y : k.y - k.lift - 4;
     for (const e of combat.aliveEnemies()) {
       const fy = footY(e);
       if (fy < top || fy - e.h > bottom) continue;
@@ -283,7 +292,7 @@ export function createBattle(world, { allies: allyXs, monsters: monsterXs, dialo
       if (!e.dead && e.hp < e.maxHp) drawHealthBar(ctx, e.x, footY(e) - e.h - BAR_GAP - 2, e.hp, e.maxHp, { enemy: true });
     }
     numbers.render(ctx);
-    allies.renderBarks(ctx, world.camera.x, VIEW_W);
+    allies.renderBarks(ctx, world.camera.x, world.camera.viewW ?? VIEW_W);
   }
 
   function renderScreen(ctx) {
@@ -377,6 +386,25 @@ export function createBattle(world, { allies: allyXs, monsters: monsterXs, dialo
     number: (x, y, text, color) => numbers.add(x, y, text, color),
     /** true → the three allies follow the Brave Knight in a line, spaced apart. */
     setFollow: (on) => allies.setFollow(on),
+    /** Keep the following allies inside world x [lo, hi] (e.g. a gate has shut behind them). */
+    setAllyBounds(lo, hi = Infinity) {
+      combat.allyBounds = { lo, hi };
+    },
+    /** The following allies run to world x and huddle there (e.g. a boss attack's safe zone); null: follow again. */
+    setRally(x) {
+      combat.rallyX = x;
+    },
+    /** A monster joins the fight now (awake): a roster entry, e.g. {kind:'shade', side:'left', …}. */
+    spawnMonster: (spec) => monsters.spawn(spec),
+    /** A monster drops dead on the spot, no damage number (e.g. minions when their master falls). */
+    slay(e) {
+      if (e.dead) return;
+      e.hp = 0;
+      e.dead = true;
+      e.dieT = 0;
+      monsters.onDefeated(e);
+      world.events.emit('monster:defeated', { monster: e });
+    },
     burst: (x, y, n, opts) => burst(particles, x, y, n, opts),
     particle: (p) => particles.add(p),
     get player() {

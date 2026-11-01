@@ -8,6 +8,7 @@ const BTN_W = 64;
 const BTN_H = 24;
 const BTN_X = Math.round((VIEW_W - BTN_W) / 2);
 const BTN_Y = Math.round((VIEW_H - BTN_H) / 2) + 10;
+const TITLE = 'The Brave Knight';
 const PRESS_TIME = 0.12; // s the button shows pressed before 'title:play'
 const FADE_OUT = 0.4; // s overlay fade after Play
 
@@ -111,17 +112,17 @@ export function createTitle(world) {
     const y = BTN_Y - 46;
     const cx = VIEW_W / 2;
     // deep shadow, then gold with outline
-    drawText(ctx, 'Brave Knight', cx + 2, y + 2, { color: INK, align: 'center', scale: 3 });
-    drawText(ctx, 'Brave Knight', cx, y, { color: GOLD, align: 'center', outline: INK, scale: 3 });
+    drawText(ctx, TITLE, cx + 2, y + 2, { color: INK, align: 'center', scale: 3 });
+    drawText(ctx, TITLE, cx, y, { color: GOLD, align: 'center', outline: INK, scale: 3 });
     // highlight band on the upper glyph rows: redraw clipped
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, y, VIEW_W, 6);
     ctx.clip();
-    drawText(ctx, 'Brave Knight', cx, y, { color: '#fff0a8', align: 'center', scale: 3 });
+    drawText(ctx, TITLE, cx, y, { color: '#fff0a8', align: 'center', scale: 3 });
     ctx.restore();
     // ornament line under the title
-    const w = measureText('Brave Knight', 3);
+    const w = measureText(TITLE, 3);
     const ly = y + 7 * 3 + 6;
     rect(ctx, Math.round(cx - w / 2), ly, w, 1, GOLD_DK);
     rect(ctx, Math.round(cx) - 2, ly - 1, 4, 3, GOLD);

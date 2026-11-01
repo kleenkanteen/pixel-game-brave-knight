@@ -12,6 +12,11 @@ npm run shoot -- tools/steps/stage-4.mjs  # the Lord's Lair: sign, cave monsters
 npm run shoot -- tools/steps/stage-4-hydra.mjs  # straight to the Hydra: charge-up, blast, ledge view
 npm run shoot -- tools/steps/stage-4-hydra-bite.mjs  # up close: sword "Too tough!", the head's bite + knockback
 npm run shoot -- tools/steps/stage-4-hydra-death.mjs  # platforms, lightning in its mouth, the explosion, gore, floating potion
+npm run shoot -- tools/steps/stage-5.mjs  # the castle: guards, gate, court, zoom-out, Dark Lord, beam, Shadows, victory
+npm run shoot -- tools/steps/stage-5-gates.mjs  # Stage 4's exit → 5, riding up to gate 2, restart at the plaza
+npm run shoot -- tools/steps/stage-5-ultimate.mjs  # the plaza: 2 potions, 23 platforms, the Shadow swarm, the ultimate
+npm run shoot -- tools/steps/stage-5-reptiles.mjs  # close-ups of the drawbridge Reptilians: crouch, bite, goo
+npm run shoot -- tools/steps/stage-5-party.mjs  # the ending: Dark Lord down, the party talk, blackout, the disco
 npm run shoot -- tools/steps/skip.mjs  # easter egg: 8 rides on to the next Stage, mounted
 ```
 
@@ -41,3 +46,6 @@ A steps file default-exports an array; each step may combine (applied in this or
 | `shot: 'name'` | screenshot; add `zoom: [x, y, w, h]` (internal px) + `scale` for a close-up |
 
 Dev builds expose `window.__game` (e.g. `__game.current.world.knight.x`) for `until` / `eval`.
+To start a Stage with a given carry, patch it in `goTo`'s callback (it runs after the title Stage's
+`exit()`, which would otherwise overwrite it): `__game.goTo('stage-5', (c) => Object.assign(c, {...}))`.
+In Stage 5 (canvas 960×540) `move` / `click` coordinates are still internal 320×180 HUD pixels.

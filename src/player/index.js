@@ -68,6 +68,7 @@ const RAGE_RED = '#ff3a12';
  */
 export function createPlayer(world, { spawnX, maxX: maxX0, emergeY = GROUND_Y, floorAt = () => GROUND_Y }) {
   let maxX = maxX0;
+  let minX = 4; // left clamp for knight.x on foot (setMinX: a gate shut behind him)
   const knight = {
     x: Math.round(spawnX - KNIGHT_W / 2),
     y: GROUND_Y,
@@ -224,7 +225,9 @@ export function createPlayer(world, { spawnX, maxX: maxX0, emergeY = GROUND_Y, f
     else if (knight.controlsEnabled) {
       if (input.isDown('left')) dir -= 1;
       if (input.isDown('right')) dir += 1;
-      if (knight.onGround && input.wasPressed('jump')) {
+      // space jumps too, unless a "Press space to …" Prompt is up (then it interacts)
+      const spaceJump = input.wasPressed('interact') && !world.interactable;
+      if (knight.onGround && (input.wasPressed('jump') || spaceJump)) {
         knight.vy = JUMP_VY;
         knight.onGround = false;
       }
@@ -233,7 +236,7 @@ export function createPlayer(world, { spawnX, maxX: maxX0, emergeY = GROUND_Y, f
     if (knight.aimFacing) knight.facing = knight.aimFacing;
     else if (dir) knight.facing = dir;
 
-    const lo = knight.mounted ? MOUNTED_MARGIN : 4;
+    const lo = Math.max(minX, knight.mounted ? MOUNTED_MARGIN : 4);
     const hi = knight.mounted ? Math.min(maxX, world.worldWidth - KNIGHT_W - MOUNTED_MARGIN) : maxX;
     knight.boundR = hi;
     const nx = knight.x + (knight.vx + knight.pushVx) * dt;
@@ -523,5 +526,10 @@ export function createPlayer(world, { spawnX, maxX: maxX0, emergeY = GROUND_Y, f
     knight.boundR = x;
   }
 
-  return { knight, startClimb, spawn, startMount, startDismount, startLadder, seat, hurt, knockback, setMaxX, update, render };
+  /** Move the left clamp for knight.x (e.g. a gate shut behind him). */
+  function setMinX(x) {
+    minX = x;
+  }
+
+  return { knight, startClimb, spawn, startMount, startDismount, startLadder, seat, hurt, knockback, setMaxX, setMinX, update, render };
 }

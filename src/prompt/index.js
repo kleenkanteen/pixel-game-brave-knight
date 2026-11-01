@@ -50,6 +50,8 @@ export function createPrompts(world) {
       t += dt;
       visible = pending;
       pending = [];
+      // something to interact with: space interacts instead of jumping (read by the player next tick)
+      world.interactable = visible.some((p) => /\bspace\b/i.test(p.text));
     },
     render(ctx) {
       const camX = world.camera.x;
@@ -58,7 +60,7 @@ export function createPrompts(world) {
         // centred over the target, but nudged to stay fully on screen
         const w = measureText(p.text);
         const left = Math.round(p.x - w / 2);
-        const x = Math.max(camX + 2, Math.min(camX + VIEW_W - 2 - w, left));
+        const x = Math.max(camX + 2, Math.min(camX + (world.camera.viewW ?? VIEW_W) - 2 - w, left));
         drawPrompt(ctx, p.text, x, Math.round(p.y) - GAP_ABOVE - GLYPH_H + bob);
       }
     },

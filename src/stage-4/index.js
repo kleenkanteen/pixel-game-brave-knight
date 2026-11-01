@@ -19,6 +19,7 @@ import { createBattle } from '../battle/index.js';
 import { createAbilities } from '../abilities/index.js';
 import { createHydra } from '../hydra/index.js';
 import { createRage } from '../rage/index.js';
+import { createExit } from '../exit/index.js';
 
 const SIGN_TEXT = ["The Lord's Lair", "Lord's cave. Beware of dog."];
 const SIGN_REPLY = ['Knight: A dog? Oh, I love dogs.'];
@@ -45,6 +46,8 @@ const ALLY_SPAWN = { archer: -40, mage: -64, holy: -88 };
  * open mouth) can stop; 30 hits kill it. It explodes in blood and guts (all over the party) and
  * leaves a Potion of Rage floating where it stood (press 4: 5× damage for 10 s, two doses).
  * Two platforms above the ledge, a jump apart, rise towards its heads. If he falls, Restart.
+ * With the Hydra dead and the potion picked up, a passage at the back of the chamber (the right
+ * edge) leads out to Stage 5, the Dark Lord's castle.
  * @returns {import('../core/stage.js').Stage}
  */
 export function createStage4() {
@@ -124,6 +127,8 @@ export function createStage4() {
       const ledgeCollider = { hit: (x, y) => SHELVES.some((L) => x >= L.x0 && x <= L.x1 && y >= L.y && y < L.y + 8) };
       const bow = createBow(world, { x: null, prompts, dialogue, colliders: [battle.collider, hydra.collider, ledgeCollider] });
       const horse = carry.horse ? createHorse(world, { carried: carry.horse, prompts, dialogue, yieldTo: [sign, ladder], player }) : null;
+      // the way on (a passage behind where the Hydra lay) opens once it's dead and the potion is his
+      const exit = createExit(world, { dialogue, onExit: () => game.transition('stage-5'), enabled: () => hydra.state === 'dead' && !rage.onFloor });
 
       world.events.on('dialogue:closed', ({ id }) => {
         if (id === 'hydra') objective.show('Objective', 'Defeat the Hydra', 4);
@@ -132,7 +137,7 @@ export function createStage4() {
 
       // debug / tools access
       Object.assign(world, { battle, hydra, rage, abilities, ladder });
-      s = { prompts, dialogue, objective, player, battle, rage, hydra, abilities, sign, ladder, sword, bow, horse };
+      s = { prompts, dialogue, objective, player, battle, rage, hydra, abilities, sign, ladder, sword, bow, horse, exit };
       world.camera.follow(world.knight.x + KNIGHT_W / 2);
     },
 
@@ -159,6 +164,7 @@ export function createStage4() {
       s.ladder.update(dt);
       s.rage.update(dt);
       s.horse?.update(dt); // after the sign + ladder: they take precedence over mounting
+      s.exit.update(dt);
       s.objective.update(dt);
       s.prompts.update(dt); // last: commits this tick's Prompt requests
       // in the chamber the camera leans right so the Hydra stays in view (eased, never a jump)
@@ -215,6 +221,7 @@ export function createStage4() {
       ctx.restore();
       ctx.restore();
 
+      s.exit.render(ctx);
       s.abilities.renderScreen(ctx);
       s.rage.renderScreen(ctx);
       s.hydra.renderScreen(ctx);

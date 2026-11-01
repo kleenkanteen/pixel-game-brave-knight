@@ -52,6 +52,7 @@ export function createStage1() {
       const dialogue = createDialogue(world);
       const objective = createObjective(world);
       const birdsong = createBirdsong(world);
+      birdsong.start(); // birds from the moment the game opens (title screen)
       const farmer = createFarmer(world, { x: FARMER_X, prompts, dialogue });
       const player = createPlayer(world, {
         spawnX: GRAVE_X,

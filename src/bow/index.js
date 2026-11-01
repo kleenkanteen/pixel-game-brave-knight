@@ -41,6 +41,7 @@ const PREVIEW_SPACING = 7; // px between dots along the arc
  *   prompts:{show(text:string, worldX:number, topY:number):void},
  *   dialogue:{isOpen():boolean},
  *   colliders?:{hit(x:number, y:number):boolean, onHit?(x:number, y:number, vx?:number):void, sticks?:boolean}[],
+ *   power?:()=>number,  // launch speed multiplier this tick (default 1; Stage 5's tall plaza: 1.5)
  * }} opts
  * @returns {{
  *   update(dt:number):void,
@@ -48,7 +49,7 @@ const PREVIEW_SPACING = 7; // px between dots along the arc
  *   renderHeld(ctx:CanvasRenderingContext2D):void,  // WORLD: bow in hand + aim preview (after player.render)
  * }}
  */
-export function createBow(world, { x = null, tableTop = GROUND_Y, prompts, dialogue, colliders = [] }) {
+export function createBow(world, { x = null, tableTop = GROUND_Y, prompts, dialogue, colliders = [], power = () => 1 }) {
   let t = 0;
   let aim = null; // {ax, ay} press point (screen px) while the button is held
   let pull = null; // {vx, vy, len} this tick's launch vector (len ≥ MIN_PULL) or null
@@ -133,8 +134,8 @@ export function createBow(world, { x = null, tableTop = GROUND_Y, prompts, dialo
     const dy = aim.ay - input.mouse.y;
     const len = Math.hypot(dx, dy);
     if (len >= MIN_PULL) {
-      const s = Math.min(len, MAX_PULL) / len;
-      pull = { vx: dx * s * POWER, vy: dy * s * POWER, len: Math.min(len, MAX_PULL) };
+      const s = (Math.min(len, MAX_PULL) / len) * POWER * power();
+      pull = { vx: dx * s, vy: dy * s, len: Math.min(len, MAX_PULL) };
       k.aimFacing = dx > 0 ? 1 : dx < 0 ? -1 : k.facing;
       k.aimAngle = Math.atan2(dy, Math.abs(dx) || 1e-6);
       k.drawPull = pull.len / MAX_PULL;

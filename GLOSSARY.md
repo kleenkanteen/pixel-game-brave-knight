@@ -38,8 +38,22 @@
 
 **Fire blast** — The Hydra's charged attack: "Attack its mouth to prevent a fire blast!" — 5 arrows in its chin within 6 s stop it; otherwise a wall of fire sweeps the whole floor (20 damage to everyone on it).
 
-**Potion of Rage** — Dropped by the Hydra; two doses. Press 4: the Brave Knight's own hits do 5× damage for 10 s while he radiates red fire.
+**Potion of Rage** — Dropped by the Hydra; two doses. Stage 5 always starts him with two doses (also on a restart at the Plaza). Press 4: the Brave Knight's own hits do 5× damage for 10 s while he radiates red fire.
 
 **Hurt flash** — The Brave Knight's sprite flashes red for a moment whenever something hits him.
 
 **Warning vortex** — The spinning ring of fire the Dark Mage's fireball marks the ground with. It lands 3 seconds later; step out of it.
+
+**Dark Lord's Castle** — Stage 5, at night under a full moon: the approach out of the Lord's Lair, the moat and its drawbridge, the gatehouse (gate 1), the inner court, gate 2, then the Plaza.
+
+**Gate guards** — Stage 5's eight guards: three Skeleton Archers on top of the gatehouse (lobbed arrows, 4 damage; one hit of anything fells them) and three Reptilians (big spiked purple beasts drooling green goo: crouch with jaws agape, then lunge and bite for 6) with two Werewolves on the drawbridge. With all eight down, gate 1's portcullis opens.
+
+**Plaza** — The Dark Lord's arena past gate 2, which shuts behind the party. The view zooms out 3× (the canvas renders 960×540; sprites keep their pixel size). Twenty-three floating rune-stone Platforms (two stairs, then zigzags to a high walkway and a staircase up to a perch three-quarters of the way up), a ritual circle, and the Balcony at the top right. The horse waits outside. Falling here restarts at the Plaza.
+
+**Dark Lord** — The Stage 5 boss. Steps onto the Balcony, talks, then turns into a flying shadow creature at the top of the Plaza: 30 hits (an arrow is 1, a Lightning Strike 4; Blessed Touch doubles, and Rage doubles the Brave Knight's own arrows).
+
+**Pulse beam** — The Dark Lord's attack, about every 8 s: a small purple glint shows his aim for 2 s, then a straight beam fires that way, burning everyone in its path (20 damage). Step out of line.
+
+**Ultimate** — The Dark Lord's blast every 40 s: the whole Plaza, floor and Platforms alike, burns (50 damage) except one safe slice three Knight Widths wide, top to bottom. A 7 s warning first: the doomed area glows violet, the slice is lit gold with "SAFE" and a countdown, and the allies run into it.
+
+**Shadows** — The Dark Lord's seven flying minions: all seven swoop in from the top, left or right at the start of the fight, 1.2 s apart (each comes once) and spits a purple pulse at a hero every 5–10 s (8 damage). A Pterodactyl's health.

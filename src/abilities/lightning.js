@@ -50,14 +50,15 @@ function ring(ctx, cx, cy, rx, ry, color) {
 }
 
 /**
- * @param {{battle:object, damage:number, radius:number}} opts  radius: px either side that it hurts
+ * @param {{battle:object, damage:number, radius:number, skyY?:()=>number}} opts
+ *   radius: px either side that it hurts; skyY: world y the bolts start from (default just above y 0)
  */
-export function createLightning({ battle, damage, radius }) {
+export function createLightning({ battle, damage, radius, skyY = () => SKY_Y }) {
   const strikes = []; // {x, t, spin, rays:[paths], jagT, hit, bolt, burst:[{a, len}]}
   let flash = 0;
 
   function cast(x) {
-    strikes.push({ x, t: 0, spin: Math.random() * Math.PI * 2, rays: [], jagT: 0, hit: false, bolt: null, rays2: null });
+    strikes.push({ x, t: 0, spin: Math.random() * Math.PI * 2, rays: [], jagT: 0, hit: false, bolt: null, rays2: null, sky: skyY() });
   }
 
   /** Where ray i is at gather progress p: top + bottom x and depth (−1 back … 1 front). */
@@ -78,7 +79,7 @@ export function createLightning({ battle, damage, radius }) {
           s.jagT = REJAG;
           s.rays = Array.from({ length: RAYS }, (_, k) => {
             const r = rayPos(s, k, p);
-            return { pts: zigzag(r.top, SKY_Y, r.bot, GROUND_Y, 8), depth: r.depth };
+            return { pts: zigzag(r.top, s.sky, r.bot, GROUND_Y, 8), depth: r.depth };
           });
         }
         // little sparks skitter where each ray touches down
@@ -88,7 +89,7 @@ export function createLightning({ battle, damage, radius }) {
         if (p >= 1) strike(s);
       } else if ((s.jagT -= dt) <= 0 && s.t - GATHER < STRIKE) {
         s.jagT = REJAG;
-        s.bolt = zigzag(s.x, SKY_Y, s.x, GROUND_Y, 12);
+        s.bolt = zigzag(s.x, s.sky, s.x, GROUND_Y, 12);
       }
       if (s.t >= GATHER + Math.max(STRIKE, BLAST)) strikes.splice(i, 1);
     }
@@ -97,7 +98,7 @@ export function createLightning({ battle, damage, radius }) {
   function strike(s) {
     s.hit = true;
     s.jagT = REJAG;
-    s.bolt = zigzag(s.x, SKY_Y, s.x, GROUND_Y, 12);
+    s.bolt = zigzag(s.x, s.sky, s.x, GROUND_Y, 12);
     // the starburst: rays fanning out from the impact, mostly up and sideways
     s.burst = Array.from({ length: 11 }, (_, k) => ({ a: Math.PI + (k / 10) * Math.PI + (Math.random() - 0.5) * 0.25, len: 14 + Math.random() * 14 }));
     flash = 0.2;

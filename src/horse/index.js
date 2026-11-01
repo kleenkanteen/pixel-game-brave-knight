@@ -62,11 +62,12 @@ const C = {
  *   farmer?:{readonly near:boolean},
  *   yieldTo?:{readonly near:boolean}[],  // more things whose Interact wins over mounting (e.g. a sign)
  *   player:{startMount(toX:number, facing:number, onDone:()=>void):void, startDismount(toX:number, onDone:()=>void):void, seat():void},
+ *   maxX?:()=>number,  // furthest right (sprite left edge) it follows him to (default: the world's edge)
  * }} opts
  * @returns {{update(dt:number):void, render(ctx:CanvasRenderingContext2D):void, carryState():null|'mounted'|'following'}}
  *   render: WORLD coords, before the player
  */
-export function createHorse(world, { x = 0, carried = null, prompts, dialogue, farmer = null, yieldTo = [], player }) {
+export function createHorse(world, { x = 0, carried = null, prompts, dialogue, farmer = null, yieldTo = [], player, maxX = () => Infinity }) {
   const others = [farmer, ...yieldTo].filter(Boolean);
   const k0 = world.knight;
   let mode = 'standing';
@@ -104,7 +105,8 @@ export function createHorse(world, { x = 0, carried = null, prompts, dialogue, f
     }
   }
 
-  const clampX = (v) => Math.max(0, Math.min(world.worldWidth - W, v));
+  // following, it never goes past maxX() (sprite left edge): e.g. it waits outside Stage 5's plaza
+  const clampX = (v) => Math.max(0, Math.min(world.worldWidth - W, maxX(), v));
 
   function follow(dt, k) {
     const dx = k.x + KNIGHT_HALF - (hx + W / 2);
@@ -376,5 +378,16 @@ export function createHorse(world, { x = 0, carried = null, prompts, dialogue, f
     for (const d of dust) px(ctx, d.x, d.y, d.life > 0.15 ? C.dust : C.coatD);
   }
 
-  return { update, render, carryState };
+  return {
+    update,
+    render,
+    carryState,
+    /** Debug / tools: the horse's centre x and mode. */
+    get x() {
+      return hx + W / 2;
+    },
+    get mode() {
+      return mode;
+    },
+  };
 }

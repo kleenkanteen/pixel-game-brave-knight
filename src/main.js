@@ -4,6 +4,7 @@ import { createStage1 } from './stage-1/index.js';
 import { createStage2 } from './stage-2/index.js';
 import { createStage3 } from './stage-3/index.js';
 import { createStage4 } from './stage-4/index.js';
+import { createStage5 } from './stage-5/index.js';
 
 const canvas = document.getElementById('game');
 canvas.width = VIEW_W;
@@ -25,6 +26,7 @@ game.register(createStage1());
 game.register(createStage2());
 game.register(createStage3());
 game.register(createStage4());
+game.register(createStage5());
 game.goTo('stage-1');
 game.start();
 

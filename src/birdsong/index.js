@@ -38,7 +38,7 @@ function stripHtml(html) {
 }
 
 /**
- * Birdsong slice: on start() fetches a calm birdsong clip from the Wikimedia Commons API
+ * Birdsong slice: on start() (called when Stage 1 opens, on the title screen) fetches a calm birdsong clip from the Wikimedia Commons API
  * (pinned titles, one picked at random), loops it at ~0.5 volume with a short fade-in, and
  * shows a dim credit line bottom-left while it plays. fadeOut(s) ramps to silence and stops.
  * Playback is Web Audio (fetch → decodeAudioData → looped buffer source → gain). The
@@ -48,7 +48,7 @@ function stripHtml(html) {
  *
  * @param {import('../core/stage.js').World} world
  * @returns {{
- *   start():void,                 // call from the Play click (autoplay policy)
+ *   start():void,                 // call when Stage 1 opens; audible after the first input
  *   fadeOut(seconds:number):void, // fade volume to 0, then stop; credit hides
  *   update(dt:number):void,
  *   render(ctx:CanvasRenderingContext2D):void,  // SCREEN coordinates: credit line
@@ -92,7 +92,12 @@ export function createBirdsong(world) {
   // The Play click is handled in the next fixed update tick, outside the DOM event. Unlock
   // audio synchronously in the gesture itself (capture phase, before anything else).
   const GESTURES = ['pointerdown', 'mousedown', 'touchend', 'keydown'];
-  const onGesture = () => unlock();
+  // Kept until the context is running: start() runs on the title screen, before any gesture,
+  // so the clip may load while audio is still locked and becomes audible on the first input.
+  const onGesture = () => {
+    unlock();
+    if (ac?.state === 'running') removeGestures();
+  };
   GESTURES.forEach((g) => window.addEventListener(g, onGesture, { capture: true }));
   const removeGestures = () => GESTURES.forEach((g) => window.removeEventListener(g, onGesture, { capture: true }));
 
@@ -116,7 +121,7 @@ export function createBirdsong(world) {
     if (stopped || !ac) return;
     const audio = await new Promise((ok, fail) => ac.decodeAudioData(buf, ok, fail));
     if (stopped) return;
-    if (ac.state === 'suspended') await ac.resume();
+    if (ac.state === 'suspended') ac.resume().catch(() => {}); // may stay locked until a gesture
     source = ac.createBufferSource();
     source.buffer = audio;
     source.loop = true;
@@ -143,9 +148,9 @@ export function createBirdsong(world) {
 
   return {
     start() {
+      // call as early as possible; audible once the browser allows audio (first input)
       if (started) return;
       started = true;
-      removeGestures();
       unlock(); // in case start() is called directly inside a gesture
       load().catch(() => {
         playing = false; // happy path: stay silent
@@ -168,7 +173,7 @@ export function createBirdsong(world) {
           fade = null;
         }
       }
-      creditAlpha = playing ? Math.min(1, level * 1.5) : 0;
+      creditAlpha = playing && ac?.state === 'running' ? Math.min(1, level * 1.5) : 0;
     },
 
     render(ctx) {

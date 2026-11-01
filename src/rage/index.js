@@ -264,6 +264,10 @@ export function createRage(world, { prompts, dialogue, battle = null, potions: s
     get onFloor() {
       return item !== null;
     },
+    /** Debug / tools: where the potion is (null once picked up). */
+    get item() {
+      return item ? { x: item.x, y: item.y } : null;
+    },
     update,
     renderBehind,
     renderFront,

@@ -1,5 +1,6 @@
 // Sound effects. Synthesized with Web Audio: sword slash, bow string, Arrow Storm's volley of bow
-// strings, Blessed Touch's angelic chord. Lightning Strike plays a real thunderclap from Commons. Fire-and-forget; silent
+// strings, Blessed Touch's angelic chord, and Stage 5's: a Shadow's pulse, a portcullis, the Dark
+// Lord's beam (charge + fire), his transformation and his death. Lightning Strike plays a real thunderclap from Commons. Fire-and-forget; silent
 // where Web Audio is unavailable.
 import { audioContext, noiseBuffer } from '../core/audio.js';
 import { VIEW_H, VIEW_W } from '../core/constants.js';
@@ -165,6 +166,48 @@ export const sfx = {
     noise(ac, white, t, 0.03, hp);
   }),
 
+  /** Reptilian bite: a wet crunch of jaws snapping shut. */
+  bite: safe(() => {
+    const ac = ready();
+    if (!ac) return;
+    const t = ac.currentTime + 0.005;
+    const g = env(ac, t, 0.6, 0.002, 0.12);
+    const bp = ac.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 2;
+    bp.frequency.setValueAtTime(1800, t);
+    bp.frequency.exponentialRampToValueAtTime(500, t + 0.1);
+    bp.connect(g);
+    noise(ac, white, t, 0.14, bp);
+    const thump = env(ac, t, 0.5, 0.002, 0.14);
+    const o = tone(ac, 'sine', 160, t, 0.16, thump);
+    o.frequency.exponentialRampToValueAtTime(60, t + 0.12);
+    const click = env(ac, t + 0.01, 0.25, 0.001, 0.03);
+    tone(ac, 'square', 900, t + 0.01, 0.04, click);
+  }),
+
+  /** Reptilian crouching to spring: a low, rattling growl. */
+  growl: safe(() => {
+    const ac = ready();
+    if (!ac) return;
+    const t = ac.currentTime + 0.005;
+    const g = env(ac, t, 0.28, 0.08, 0.45);
+    const lp = ac.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 600;
+    lp.connect(g);
+    const o = tone(ac, 'sawtooth', 70 + Math.random() * 15, t, 0.55, lp);
+    const lfo = ac.createOscillator();
+    lfo.frequency.value = 28;
+    const depth = ac.createGain();
+    depth.gain.value = 18;
+    lfo.connect(depth);
+    depth.connect(o.frequency);
+    lfo.start(t);
+    lfo.stop(t + 0.6);
+    noise(ac, white, t, 0.5, lp);
+  }),
+
   /** Arrow Storm: `n` bow strings in quick succession. */
   volley(n = 5, every = 0.14) {
     for (let i = 0; i < n; i++) sfx.bowString(i * every);
@@ -206,6 +249,137 @@ export const sfx = {
     drawText(ctx, text, 3, VIEW_H - 10, { color: '#b9b2c8', shadow: true });
     ctx.globalAlpha = prev;
   },
+
+  /** A Shadow's purple pulse: a short descending "pew" with a fizz. */
+  pulse: safe(() => {
+    const ac = ready();
+    if (!ac) return;
+    const t = ac.currentTime + 0.005;
+    const g = env(ac, t, 0.16, 0.005, 0.28);
+    const o = tone(ac, 'square', 880, t, 0.3, g);
+    o.frequency.exponentialRampToValueAtTime(220, t + 0.28);
+    const f = env(ac, t, 0.08, 0.005, 0.18);
+    const bp = ac.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 2400;
+    bp.connect(f);
+    noise(ac, white, t, 0.2, bp);
+  }),
+
+  /** A portcullis: chains rattling over a deep grinding rumble, then (down) a heavy clang. */
+  gate: safe((closing = false, dur = 2) => {
+    const ac = ready();
+    if (!ac) return;
+    const t = ac.currentTime + 0.01;
+    const rumble = ac.createGain();
+    rumble.gain.setValueAtTime(0.0001, t);
+    rumble.gain.linearRampToValueAtTime(0.5, t + 0.2);
+    rumble.gain.setValueAtTime(0.5, t + dur - 0.3);
+    rumble.gain.linearRampToValueAtTime(0.0001, t + dur);
+    rumble.connect(out);
+    const lp = ac.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 220;
+    lp.connect(rumble);
+    noise(ac, white, t, Math.min(1.9, dur), lp);
+    // chain links: little metallic ticks
+    for (let i = 0; i < dur * 9; i++) {
+      const at = t + i / 9 + Math.random() * 0.03;
+      const g = env(ac, at, 0.05, 0.002, 0.06);
+      tone(ac, 'triangle', 1800 + Math.random() * 900, at, 0.08, g);
+    }
+    if (closing) {
+      const at = t + dur;
+      const g = env(ac, at, 0.7, 0.003, 0.9);
+      g.connect(verb);
+      for (const f of [110, 163, 247, 391]) tone(ac, 'triangle', f, at, 0.95, g);
+      const thud = env(ac, at, 0.9, 0.003, 0.4);
+      const o = tone(ac, 'sine', 90, at, 0.45, thud);
+      o.frequency.exponentialRampToValueAtTime(40, at + 0.4);
+    }
+  }),
+
+  /** The Dark Lord readies his beam: a rising, wavering hum (`dur` s). */
+  beamCharge: safe((dur = 2) => {
+    const ac = ready();
+    if (!ac) return;
+    const t = ac.currentTime + 0.01;
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.14, t + dur * 0.9);
+    g.gain.linearRampToValueAtTime(0.0001, t + dur);
+    g.connect(out);
+    for (const [type, f0, det] of [['sawtooth', 110, 0], ['sine', 220, 7]]) {
+      const o = tone(ac, type, f0, t, dur, g);
+      o.detune.value = det;
+      o.frequency.exponentialRampToValueAtTime(f0 * 3, t + dur);
+      const lfo = ac.createOscillator();
+      lfo.frequency.value = 9;
+      const depth = ac.createGain();
+      depth.gain.value = 18;
+      lfo.connect(depth);
+      depth.connect(o.frequency);
+      lfo.start(t);
+      lfo.stop(t + dur + 0.05);
+    }
+  }),
+
+  /** The beam fires: a searing, buzzing roar that dies away (`dur` s). */
+  beam: safe((dur = 0.7) => {
+    const ac = ready();
+    if (!ac) return;
+    const t = ac.currentTime + 0.005;
+    const g = env(ac, t, 0.5, 0.01, dur);
+    g.connect(verb);
+    const lp = ac.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(5000, t);
+    lp.frequency.exponentialRampToValueAtTime(400, t + dur);
+    lp.connect(g);
+    noise(ac, white, t, dur + 0.05, lp);
+    for (const f of [55, 82.5, 110]) tone(ac, 'sawtooth', f, t, dur, lp);
+  }),
+
+  /** The Dark Lord's transformation: a swelling whoosh of dark wind and a low groan sweeping down. */
+  transform: safe((dur = 2.2) => {
+    const ac = ready();
+    if (!ac) return;
+    const t = ac.currentTime + 0.01;
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.5, t + dur * 0.8);
+    g.gain.linearRampToValueAtTime(0.0001, t + dur);
+    g.connect(out);
+    g.connect(verb);
+    const bp = ac.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 2;
+    bp.frequency.setValueAtTime(300, t);
+    bp.frequency.exponentialRampToValueAtTime(2400, t + dur * 0.8);
+    bp.connect(g);
+    noise(ac, white, t, Math.min(1.95, dur), bp);
+    const groan = env(ac, t + dur * 0.55, 0.3, 0.2, dur * 0.6);
+    const o = tone(ac, 'sawtooth', 140, t + dur * 0.55, dur * 0.7, groan);
+    o.frequency.exponentialRampToValueAtTime(45, t + dur * 1.2);
+  }),
+
+  /** The shadow form breaks apart: a deep boom and a long airy dissolve. */
+  bossDeath: safe(() => {
+    const ac = ready();
+    if (!ac) return;
+    const t = ac.currentTime + 0.01;
+    const boom = env(ac, t, 0.9, 0.005, 1.4);
+    boom.connect(verb);
+    const o = tone(ac, 'sine', 120, t, 1.5, boom);
+    o.frequency.exponentialRampToValueAtTime(30, t + 1.4);
+    const air = env(ac, t, 0.35, 0.3, 1.6);
+    air.connect(verb);
+    const hp = ac.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 900;
+    hp.connect(air);
+    noise(ac, white, t, 1.9, hp);
+  }),
 
   /** Blessed Touch: a soft, swelling major chord with shimmering detune and bell-like sparkles. */
   blessed: safe(() => {

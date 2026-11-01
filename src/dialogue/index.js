@@ -54,9 +54,9 @@ function wrap(line) {
  *
  * @param {import('../core/stage.js').World} world
  * @returns {{
- *   open(id:string, lines:string[], opts?:{align?:'left'|'center', heading?:boolean}):void,
- *     // e.g. open('intro', ['Brave Knight: Huh? Where am I?', '...'])
- *   play(id:string, panels:string[][]):void,  // conversation: one panel after another
+ *   open(id:string, lines:string[], opts?:{align?:'left'|'center', heading?:boolean, y?:number}):void,
+ *     // e.g. open('intro', ['Brave Knight: Huh? Where am I?', '...']); y: the panel's top (default 26)
+ *   play(id:string, panels:string[][], opts?:{y?:number}):void,  // conversation: one panel after another
  *   isOpen():boolean,
  *   update(dt:number):void,
  *   render(ctx:CanvasRenderingContext2D):void,  // SCREEN coordinates
@@ -65,22 +65,25 @@ function wrap(line) {
 export function createDialogue(world) {
   let current = null; // {id, lines, shown, total, t, doneT}
   let queue = []; // panels still to show in the current conversation
+  let playOpts = {}; // the conversation's options (its panel position)
 
   function show(id, rawLines, opts = {}) {
     const lines = rawLines.flatMap(wrap);
     const total = lines.reduce((n, l) => n + [...l].length, 0);
     const center = opts.align === 'center';
-    current = { id, lines, shown: 0, total, t: 0, doneT: -1, center, heading: !!opts.heading };
+    current = { id, lines, shown: 0, total, t: 0, doneT: -1, center, heading: !!opts.heading, y: opts.y ?? PANEL_Y };
   }
 
   function open(id, lines, opts) {
     queue = [];
+    playOpts = {};
     show(id, lines, opts);
   }
 
-  function play(id, panels) {
+  function play(id, panels, opts = {}) {
     queue = panels.slice(1);
-    show(id, panels[0]);
+    playOpts = opts;
+    show(id, panels[0], opts);
   }
 
   function update(dt) {
@@ -93,7 +96,7 @@ export function createDialogue(world) {
       if (current.shown < current.total) {
         current.shown = current.total;
       } else if (queue.length) {
-        show(current.id, queue.shift());
+        show(current.id, queue.shift(), playOpts);
       } else {
         const { id } = current;
         current = null;
@@ -136,7 +139,7 @@ export function createDialogue(world) {
     const width = Math.max(MIN_W, textW + PAD_X * 2);
     const height = PAD_Y * 2 + lines.length * LINE_H + NEXT_GAP + LINE_H - 2;
     const x = Math.round((VIEW_W - width) / 2);
-    const y = PANEL_Y;
+    const y = current.y;
     drawPanel(ctx, x, y, width, height);
 
     let budget = Math.floor(current.shown);

@@ -21,6 +21,8 @@ const FOLLOW_GAP = 1.5 * KNIGHT_W; // px kept between each follower and the one 
 const FOLLOW_SLACK = 6; // px past the gap before a follower sets off (no jitter)
 const FOLLOW_SPEED = WALK_SPEED * 1.6; // fast enough to keep up with the horse
 const CLIMB_SPEED = 46; // px/s up or down a ladder (same as the knight)
+const RALLY_SPEED = FOLLOW_SPEED * 1.3; // px/s: running for a safe zone
+const RALLY_SPOTS = [-12, 0, 12]; // px either side of a rally point (archer, mage, holy): they huddle
 const ENGAGE_RANGE = 220; // px: while following, they only take on monsters this close
 const BOSS_RANGE = 300; // px: the Archer shoots at a boss's weak spot this close
 
@@ -120,6 +122,10 @@ export function createAllies(combat, xs) {
    * FOLLOW_GAP from him, the next keeps FOLLOW_GAP from that one, and so on.
    */
   function updateFollow(dt) {
+    if (combat.rallyX !== null && combat.rallyX !== undefined && !combat.ledge) {
+      list.forEach((a, i) => rallyStep(a, combat.rallyX + RALLY_SPOTS[i], dt));
+      return;
+    }
     const p = combat.player;
     const order = [...list].sort((a, b) => Math.abs(a.x - p.x) + Math.abs(a.y - p.y) - (Math.abs(b.x - p.x) + Math.abs(b.y - p.y)));
     let leader = { x: p.x, level: levelOf(p.y) };
@@ -130,6 +136,18 @@ export function createAllies(combat, xs) {
       // the next one follows this one (mid-climb it counts as where it's headed)
       leader = { x: a.x, level: a.climb !== null ? levelOf(a.climb) : levelOf(a.y) };
     }
+  }
+
+  /** Run (faster than following) to x and stand there. */
+  function rallyStep(a, x, dt) {
+    const d = x - a.x;
+    if (Math.abs(d) < 0.5) {
+      a.moving = 0;
+      return;
+    }
+    a.moving = Math.sign(d);
+    a.x += a.moving * Math.min(RALLY_SPEED * dt, Math.abs(d));
+    a.walkT = (a.walkT || 0) + dt;
   }
 
   /** 0 on the floor, 1 up on the ledge (when the Stage has one). */
@@ -148,8 +166,8 @@ export function createAllies(combat, xs) {
       a.moving = 0;
       return;
     }
-    let lo = Math.min(8, a.x); // walking in from off the left edge is fine
-    let hi = combat.worldWidth - 8;
+    let lo = Math.max(combat.allyBounds.lo, Math.min(8, a.x)); // walking in from off the left edge is fine
+    let hi = Math.min(combat.allyBounds.hi, combat.worldWidth - 8);
     const L = combat.ledge;
     if (L && levelOf(a.y) === 1) {
       lo = L.x0 + 5;

@@ -7,6 +7,8 @@
  * Stage 3 adds: 'monster:hit' ({monster, damage}), 'monster:defeated' ({monster}),
  *   'hero:hurt' ({hero, damage}), 'battle:won'.
  * Stage 4 adds: 'potion:picked', 'potion:drunk' ({left}).
+ * Stage 5 adds: 'guards-down', 'gate1-open', 'plaza-entered' (gate 2 has shut behind the party),
+ *   'zoom-done', 'boss-appeared', 'boss-phase-2' (the shadow form), 'boss-dead'.
  * @returns {{on(name:string, fn:Function):Function, off(name:string, fn:Function):void, emit(name:string, payload?:any):void, clear():void}}
  */
 export function createEvents() {

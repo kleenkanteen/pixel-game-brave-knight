@@ -59,6 +59,25 @@ function drawBackWall(ctx) {
   }
 }
 
+/**
+ * The way out at the back of the Hydra's chamber: an arched passage in the right wall, cool
+ * moonlight showing at its far end (Stage 5 is out there). Hidden behind the Hydra until it's gone.
+ */
+function drawPassage(ctx) {
+  const cx = WORLD_W - 22;
+  const top = GROUND_Y - 58;
+  for (let y = top; y < GROUND_Y; y++) {
+    const dy = Math.max(0, top + 16 - y);
+    const half = Math.round(Math.sqrt(Math.max(0, 256 - dy * dy)));
+    rect(ctx, cx - half - 2, y, half * 2 + 4, 1, ROCK.dark);
+    rect(ctx, cx - half, y, half * 2, 1, '#0c0a14');
+    // moonlight from outside, brightest low and to the right
+    const k = (y - top) / (GROUND_Y - top);
+    if (k > 0.25) rect(ctx, cx + half - 6, y, 4, 1, k > 0.7 ? '#3a4a78' : '#24304e');
+  }
+  rect(ctx, cx - 12, GROUND_Y - 1, 28, 1, '#4a5a8a');
+}
+
 /** The rock shelf (top at LEDGE.y) on a rock column rising from the floor behind the walkway. */
 function drawLedge(ctx) {
   const { x0, x1, y } = LEDGE;
@@ -141,6 +160,7 @@ export function buildWorld() {
   TREES_MID.forEach((t) => drawTree(ctx, t));
   drawGround(ctx, { width: WORLD_W, rot: () => 1, seed: 404 });
   drawBackWall(ctx);
+  drawPassage(ctx);
   drawLedge(ctx);
   PLATFORMS.forEach((p, i) => drawPlatform(ctx, p, 61 + i * 7));
   drawFloor(ctx);

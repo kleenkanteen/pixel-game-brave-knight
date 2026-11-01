@@ -28,6 +28,7 @@ export function createGame({ canvas, ctx }) {
      *   weapon: the weapon in hand ('sword' | 'bow' | null)
      *   abilities: how many of the party's abilities are unlocked (0–3, abilities/ slice)
      *   potions: Potions of Rage left (rage/ slice; the Hydra drops one with 2 doses)
+     *   checkpoint: where a Stage starts over from after a Restart (Stage 5: 'plaza'), else absent
      */
     carry: { horse: null, sword: false, bow: false, weapon: null, abilities: 0, potions: 0 },
     /** @param {import('./stage.js').Stage} stage */
@@ -41,14 +42,27 @@ export function createGame({ canvas, ctx }) {
       current?.exit();
       patchCarry?.(game.carry);
       current = next;
+      // a Stage may render at a multiple of 320×180 (Stage 5's zoomed-out plaza: 3 → 960×540);
+      // the canvas keeps its on-page size, so each canvas pixel just gets smaller
+      const res = next.resolution ?? 1;
+      if (canvas.width !== VIEW_W * res) {
+        canvas.width = VIEW_W * res;
+        canvas.height = VIEW_H * res;
+      }
       entryCarry = structuredClone(game.carry);
       current.enter(game);
     },
-    /** Fade out and start the current Stage over, with everything as it was when he entered it. */
-    restart() {
+    /**
+     * Fade out and start the current Stage over, with everything as it was when he entered it.
+     * @param {(carry:object)=>void} [patch]  then tweaks that carry (e.g. a checkpoint to start from)
+     */
+    restart(patch) {
       if (!current) return;
       const snapshot = structuredClone(entryCarry);
-      game.transition(current.id, (carry) => Object.assign(carry, snapshot));
+      game.transition(current.id, (carry) => {
+        Object.assign(carry, snapshot);
+        patch?.(carry);
+      });
     },
     /** Fade the current Stage out, switch to `id`, fade it in. Ignored while one is running. */
     transition(id, patchCarry) {
@@ -109,13 +123,13 @@ export function createGame({ canvas, ctx }) {
     },
     render() {
       ctx.imageSmoothingEnabled = false;
-      ctx.clearRect(0, 0, VIEW_W, VIEW_H);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
       current?.render(ctx);
       if (fade) {
         const a = fade.phase === 'out' ? fade.t / FADE_OUT : 1 - fade.t / FADE_IN;
         ctx.globalAlpha = Math.max(0, Math.min(1, a));
         ctx.fillStyle = '#05040a';
-        ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.globalAlpha = 1;
       }
     },

@@ -1,3 +1,6 @@
 node_modules/
 dist/
 .DS_Store
+
+# scripted-playthrough screenshots (regenerate with `npm run shoot`)
+tickets/assets/screens/
