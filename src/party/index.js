@@ -23,6 +23,9 @@ const SPOTS = 70;
 const HUES = ['#ff3a6a', '#ffd23a', '#3aff8a', '#3ac8ff', '#a05aff', '#ff7a2a', '#ff5ae0', '#7affe8'];
 const HYDRA_SCALE = 0.55;
 const TEXT_IN = 1.2; // s after the lights come up: the thanks fades in
+const SITE = 'sabih.dev';
+const AUTHOR_PRE = 'Author: Sabih Sarowar, ';
+const AUTHOR_Y = 28;
 
 /**
  * @param {import('../core/stage.js').World} world
@@ -69,10 +72,35 @@ export function createParty(world, { x: CX, ballY: BY, top: TOP, credit = '' }) 
   function start() {
     t = 0;
     sparks.length = 0;
+    overSite = false;
   }
+
+  /** The clickable "sabih.dev" in the author line, in SCREEN px. */
+  function siteRect() {
+    const full = AUTHOR_PRE + SITE;
+    const left = Math.round(VIEW_W / 2 - measureText(full) / 2);
+    const x = left + measureText(AUTHOR_PRE) + 1;
+    return { x: x - 2, y: AUTHOR_Y - 2, w: measureText(SITE) + 4, h: 12 };
+  }
+  let overSite = false;
+  const setCursor = (c) => {
+    const cv = document.getElementById('game');
+    if (cv) cv.style.cursor = c;
+  };
 
   function update(dt) {
     t += dt;
+    if (t > TEXT_IN + 0.4) {
+      const m = world.input.mouse;
+      const r = siteRect();
+      const over = m.x >= r.x && m.x < r.x + r.w && m.y >= r.y && m.y < r.y + r.h;
+      if (over !== overSite) setCursor(over ? 'pointer' : 'default');
+      overSite = over;
+      if (over && world.input.wasClicked()) {
+        world.input.consumeClick();
+        window.open(`https://${SITE}`, '_blank', 'noopener');
+      }
+    }
     // sparkles flung off the ball
     const n = Math.random() < 0.6 ? 2 : 1;
     for (let i = 0; i < n; i++) {
@@ -337,8 +365,12 @@ export function createParty(world, { x: CX, ballY: BY, top: TOP, credit = '' }) 
         const y = 8 - Math.round(bounce(i * 0.08) * 2);
         x += drawText(u, ch, x, y, { color: '#fff', outline: '#000', scale: 2 }) + (ch === ' ' ? 0 : 2);
       });
-      const by = 'Author: Sabih Sarowar, sabih.dev';
-      drawText(u, by, Math.round(VIEW_W / 2 - measureText(by) / 2), 28, { color: '#fff6d8', outline: '#14101c' });
+      const by = AUTHOR_PRE + SITE;
+      drawText(u, by, Math.round(VIEW_W / 2 - measureText(by) / 2), AUTHOR_Y, { color: '#fff6d8', outline: '#14101c' });
+      // underline the link (brighter while hovered)
+      const r = siteRect();
+      rect(u, r.x + 2, AUTHOR_Y + 9, r.w - 4, 1, '#14101c');
+      rect(u, r.x + 2, AUTHOR_Y + 8, r.w - 4, 1, overSite ? '#ffffff' : '#8ad0ff');
       if (credit) {
         withAlpha(u, 0.75, () => drawText(u, credit, Math.round(VIEW_W / 2 - measureText(credit) / 2), 40, { color: '#c8c0d8', outline: '#14101c' }));
       }

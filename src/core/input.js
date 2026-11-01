@@ -34,6 +34,8 @@ const PREVENT = new Set(['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDo
  */
 export function createInput(canvas) {
   const down = new Set(); // key codes held
+  const virtual = new Set(); // actions held by on-screen touch buttons
+  let lastTouch = -1e9; // ignore emulated mouse events right after a touch
   const pressed = new Set(); // actions pressed since last endFrame
   let clicked = false;
   let mouseHeld = false;
@@ -64,23 +66,58 @@ export function createInput(canvas) {
     mouse.x = Math.floor(((e.clientX - r.left) / r.width) * VIEW_W);
     mouse.y = Math.floor(((e.clientY - r.top) / r.height) * VIEW_H);
   }
-  window.addEventListener('mousemove', toInternal);
+  const emulated = () => performance.now() - lastTouch < 600;
+  window.addEventListener('mousemove', (e) => {
+    if (!emulated()) toInternal(e);
+  });
   window.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || emulated()) return;
     toInternal(e);
     clicked = true;
     mouseHeld = true;
   });
   window.addEventListener('mouseup', (e) => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || emulated()) return;
     toInternal(e);
     if (mouseHeld) released = true;
     mouseHeld = false;
   });
 
+  // A finger on the game canvas acts as the mouse (taps, bow click-drag-release, Arrow Storm).
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'touch') return;
+    lastTouch = performance.now();
+    e.preventDefault();
+    toInternal(e);
+    clicked = true;
+    mouseHeld = true;
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (e.pointerType !== 'touch') return;
+    lastTouch = performance.now();
+    toInternal(e);
+  });
+  const touchUp = (e) => {
+    if (e.pointerType !== 'touch') return;
+    lastTouch = performance.now();
+    toInternal(e);
+    if (mouseHeld) released = true;
+    mouseHeld = false;
+  };
+  canvas.addEventListener('pointerup', touchUp);
+  canvas.addEventListener('pointercancel', touchUp);
+
   return {
     mouse,
-    isDown: (action) => BINDINGS[action].some((c) => down.has(c)),
+    /** On-screen buttons: hold / release an action as if its key were held. */
+    pressVirtual(action) {
+      if (!virtual.has(action)) pressed.add(action);
+      virtual.add(action);
+    },
+    releaseVirtual(action) {
+      virtual.delete(action);
+    },
+    isDown: (action) => virtual.has(action) || BINDINGS[action].some((c) => down.has(c)),
     wasPressed: (action) => pressed.has(action),
     wasClicked: () => clicked,
     isMouseDown: () => mouseHeld,
