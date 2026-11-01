@@ -8,14 +8,9 @@ import { createStage5 } from './stage-5/index.js';
 import { createTouchControls } from './touch/index.js';
 import { inject } from '@vercel/analytics';
 
-// /game/ is proxied through the website's separate Vercel project.
-// Send analytics to this game's project on both its own domain and sabih.dev.
-const analyticsOrigin = 'https://brave-night-sigma.vercel.app';
-inject({
-  scriptSrc: `${analyticsOrigin}/_vercel/insights/script.js`,
-  viewEndpoint: `${analyticsOrigin}/_vercel/insights/view`,
-  eventEndpoint: `${analyticsOrigin}/_vercel/insights/event`,
-});
+// Use the current host's Analytics project: sabih.dev for /game/,
+// or the game project when opened on its direct Vercel URL.
+inject();
 
 const canvas = document.getElementById('game');
 canvas.width = VIEW_W;
