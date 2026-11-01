@@ -1,6 +1,6 @@
 # The Brave Knight
 
-<p align="center"><img src="docs/logo.svg" alt="Pixel art knight's helmet" width="160"></p>
+<p align="center"><img src="docs/logo-v2.svg" alt="Pixel art knight's helmet" height="200"></p>
 
 Follow a brave knight on his second life in the cursed land of Bavaria. He claws out of his own grave, borrows a farmer's horse, gathers a party of adventurers, and descends into the Dark Lord's castle.
 
