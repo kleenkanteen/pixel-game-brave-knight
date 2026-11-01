@@ -6,6 +6,9 @@ import { createStage3 } from './stage-3/index.js';
 import { createStage4 } from './stage-4/index.js';
 import { createStage5 } from './stage-5/index.js';
 import { createTouchControls } from './touch/index.js';
+import { inject } from '@vercel/analytics';
+
+inject();
 
 const canvas = document.getElementById('game');
 canvas.width = VIEW_W;
