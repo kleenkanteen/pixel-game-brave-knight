@@ -15,7 +15,7 @@ const CONVERSATION = [
   ["Farmer: Didn't all of you die a hundred years ago?"],
   ['Knight: I think so. I feel great though. Anyways, do you know where I am?'],
   [
-    'Farmer: You are in the lands of Lusiria. Any point after this is dangerous, though. But if you seek glory and adventure, you will find it there.',
+    'Farmer: You are in the lands of Bavaria. Any point after this is dangerous, though. But if you seek glory and adventure, you will find it there.',
   ],
   [
     "Knight: Glory? That's my middle name. Can I borrow your horse, by the way? If I come back alive, I'll give you a hundred gold coins.",
