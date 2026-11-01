@@ -234,7 +234,6 @@ export function createCaveMonsters(combat) {
       for (const h of combat.targetableHeroes()) {
         if (Math.abs(h.x - d.x) > SPLAT_R + h.w / 2 - 2 || Math.abs(h.y - d.landY) > 6) continue;
         combat.damageHero(h, DROPPING_DAMAGE);
-        if (h.kind === 'archer') combat.say('archer', 'Ugh! Not the hat!');
         if (h.kind === 'player') combat.say('holy', "They say that's good luck.");
       }
     }

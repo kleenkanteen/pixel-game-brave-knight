@@ -41,7 +41,7 @@ const ALLY_SPAWN = { archer: -40, mage: -64, holy: -88 };
  * ("Beware of dog") into a torch-lit cave: an open cavern of seven monsters (three Cave Crawlers,
  * two Rock Golems, two Pterodactyls dropping droppings from above), a low tunnel, then the Hydra's
  * chamber — two screens wide, with a ledge up a ladder. The Hydra spits fireballs at him and charges
- * floor-wide fire blasts that only arrows into its exposed chin (or a Lightning Strike down its
+ * fire blasts along his row that only arrows into its exposed chin (or a Lightning Strike down its
  * open mouth) can stop; 30 hits kill it. It explodes in blood and guts (all over the party) and
  * leaves a Potion of Rage floating where it stood (press 4: 5× damage for 10 s, two doses).
  * Two platforms above the ledge, a jump apart, rise towards its heads. If he falls, Restart.

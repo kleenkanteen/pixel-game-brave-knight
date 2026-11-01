@@ -13,7 +13,7 @@ const ROTTED = ['violet', 'violetD', 'rotgreen', 'moss'];
 const ROT_BARK = ['#3a3438', '#544a52', '#1c181e'];
 const ROT_BARK_D = ['#2c2830', '#3e3842', '#141216'];
 
-const BACK_TREES = [
+export const BACK_TREES = [
   { x: 60, h: 72, r: 18, shape: 'oak', leaves: ['red', 'darkred', 'yellow'], seed: 51 },
   { x: 206, h: 66, r: 17, shape: 'tall', leaves: AUTUMN, seed: 52 },
   { x: 372, h: 74, r: 18, shape: 'oak', leaves: GREENS, seed: 53 },
@@ -24,7 +24,7 @@ const BACK_TREES = [
   { x: 870, h: 80, r: 19, shape: 'dead', leaves: ROTTED, trunk: ROT_BARK_D, rot: 1, seed: 64 },
 ];
 
-const MID_TREES = [
+export const MID_TREES = [
   { x: 22, h: 64, r: 18, shape: 'spread', leaves: ['darkred', 'red', 'yellow'], seed: 71 },
   { x: 180, h: 56, r: 14, shape: 'tall', leaves: ['yellow', 'yellow', 'red'], seed: 72 },
   { x: 404, h: 62, r: 17, shape: 'spread', leaves: AUTUMN, seed: 73 },

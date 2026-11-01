@@ -1,14 +1,56 @@
-// Sound effects, synthesized with Web Audio (no audio files): sword slash, bow string, lightning,
-// Arrow Storm's volley of bow strings, Blessed Touch's angelic chord. Fire-and-forget; silent
+// Sound effects. Synthesized with Web Audio: sword slash, bow string, Arrow Storm's volley of bow
+// strings, Blessed Touch's angelic chord. Lightning Strike plays a real thunderclap from Commons. Fire-and-forget; silent
 // where Web Audio is unavailable.
 import { audioContext, noiseBuffer } from '../core/audio.js';
+import { VIEW_H, VIEW_W } from '../core/constants.js';
+import { drawText, measureText } from '../core/font.js';
 
 const VOLUME = 0.6;
+
+/**
+ * Lightning: a real thunderclap (Richard Humphries, CC BY 4.0), fetched at runtime from the
+ * Wikimedia Commons API. We play 4 s of it: a brief rumble, the crack at THUNDER_CRACK, the roll.
+ */
+const THUNDER_API_URL =
+  'https://commons.wikimedia.org/w/api.php?' +
+  new URLSearchParams({
+    action: 'query',
+    format: 'json',
+    formatversion: '2',
+    origin: '*',
+    titles: 'File:Nosferatu thunderclap - Richard Humphries.wav',
+    prop: 'videoinfo',
+    viprop: 'url|derivatives|extmetadata',
+    viextmetadatafilter: 'Artist|LicenseShortName',
+  });
+const THUNDER_FROM = 3.0; // s into the recording
+const THUNDER_CRACK = 3.37; // s into the recording: the crack
+const THUNDER_LEN = 4; // s
+const THUNDER_VOL = 1.1;
+let thunder = null; // AudioBuffer
+let thunderLoading = false;
+let thunderCredit = '';
+let creditUntil = 0; // performance.now() seconds
+
+const stripHtml = (html) => String(html || '').replace(/<[^>]*>/g, '').trim();
+
+async function loadThunder() {
+  const ac = ready();
+  if (!ac) return;
+  const data = await (await fetch(THUNDER_API_URL)).json();
+  const info = data?.query?.pages?.[0]?.videoinfo?.[0];
+  if (!info) return;
+  // the MP3 transcode decodes everywhere (Safari included); else the original
+  const mp3 = (info.derivatives || []).find((d) => d.type === 'audio/mpeg');
+  const buf = await (await fetch(mp3?.src || info.url)).arrayBuffer();
+  thunder = await new Promise((ok, fail) => ac.decodeAudioData(buf, ok, fail));
+  const meta = info.extmetadata || {};
+  thunderCredit = `Thunder: ${stripHtml(meta.Artist?.value) || 'Richard Humphries'}, ${stripHtml(meta.LicenseShortName?.value) || 'CC BY 4.0'}, Wikimedia Commons`;
+}
 
 let out = null; // master gain
 let verb = null; // input of a soft feedback-delay "hall" (for the angelic chord + thunder tail)
 let white = null; // shared 2 s white-noise buffer
-let brown = null; // shared 3 s brown-noise buffer
 
 function ready() {
   const ac = audioContext();
@@ -37,7 +79,6 @@ function ready() {
       wet.connect(out);
     }
     white = noiseBuffer(ac, 2, 'white');
-    brown = noiseBuffer(ac, 3, 'brown');
   }
   return ac;
 }
@@ -97,27 +138,31 @@ export const sfx = {
     tone(ac, 'triangle', 2650 + Math.random() * 200, t + 0.02, 0.2, ring);
   }),
 
-  /** Bow string: a low, damped "thwum" with a little click of release. `delay` in s. */
+  /** Bow string: a deep, damped "thwum" with a soft click of release. `delay` in s. */
   bowString: safe((delay = 0) => {
     const ac = ready();
     if (!ac) return;
     const t = ac.currentTime + 0.005 + delay;
-    const f = 150 * (0.93 + Math.random() * 0.14);
-    const g = env(ac, t, 0.45, 0.004, 0.28);
+    const f = 82 * (0.94 + Math.random() * 0.12);
+    const g = env(ac, t, 0.6, 0.004, 0.36);
     const lp = ac.createBiquadFilter();
     lp.type = 'lowpass';
-    lp.Q.value = 4;
-    lp.frequency.setValueAtTime(2400, t);
-    lp.frequency.exponentialRampToValueAtTime(260, t + 0.18);
+    lp.Q.value = 5;
+    lp.frequency.setValueAtTime(1500, t);
+    lp.frequency.exponentialRampToValueAtTime(150, t + 0.22);
     lp.connect(g);
-    const o = tone(ac, 'sawtooth', f * 1.15, t, 0.3, lp);
-    o.frequency.exponentialRampToValueAtTime(f, t + 0.05);
-    const click = env(ac, t, 0.25, 0.001, 0.025);
+    const o = tone(ac, 'sawtooth', f * 1.2, t, 0.4, lp);
+    o.frequency.exponentialRampToValueAtTime(f, t + 0.06);
+    // body: a low sine thump under the string
+    const body = env(ac, t, 0.5, 0.003, 0.2);
+    const b = tone(ac, 'sine', f * 0.75, t, 0.25, body);
+    b.frequency.exponentialRampToValueAtTime(f * 0.55, t + 0.2);
+    const click = env(ac, t, 0.12, 0.001, 0.02);
     const hp = ac.createBiquadFilter();
     hp.type = 'highpass';
-    hp.frequency.value = 2500;
+    hp.frequency.value = 1800;
     hp.connect(click);
-    noise(ac, white, t, 0.04, hp);
+    noise(ac, white, t, 0.03, hp);
   }),
 
   /** Arrow Storm: `n` bow strings in quick succession. */
@@ -125,49 +170,42 @@ export const sfx = {
     for (let i = 0; i < n; i++) sfx.bowString(i * every);
   },
 
-  /** Lightning Strike: crackling while the rays gather (`gather` s), then a crack and a rolling rumble. */
+  /** Lightning Strike: a real thunderclap, timed so its crack lands as the bolt hits (`gather` s after the cast). */
   lightning: safe((gather = 0.5) => {
     const ac = ready();
-    if (!ac) return;
-    const t = ac.currentTime + 0.005;
-    // crackle: hiss chopped by a fast random-ish tremolo, swelling toward the strike
-    const cg = ac.createGain();
-    cg.gain.setValueAtTime(0.0001, t);
-    cg.gain.exponentialRampToValueAtTime(0.25, t + gather);
-    cg.gain.exponentialRampToValueAtTime(0.0001, t + gather + 0.05);
-    cg.connect(out);
-    const chop = ac.createGain();
-    chop.gain.value = 0.5;
-    chop.connect(cg);
-    const lfoG = ac.createGain();
-    lfoG.gain.value = 0.5;
-    lfoG.connect(chop.gain);
-    const lfo = tone(ac, 'square', 37, t, gather + 0.1, lfoG);
-    lfo.frequency.linearRampToValueAtTime(90, t + gather);
-    const hp = ac.createBiquadFilter();
-    hp.type = 'highpass';
-    hp.frequency.value = 3000;
-    hp.connect(chop);
-    noise(ac, white, t, gather + 0.1, hp);
-
-    // the crack
-    const s = t + gather;
-    const crack = env(ac, s, 1.0, 0.002, 0.25);
-    const cbp = ac.createBiquadFilter();
-    cbp.type = 'highpass';
-    cbp.frequency.value = 700;
-    cbp.connect(crack);
-    noise(ac, white, s, 0.3, cbp);
-    crack.connect(verb);
-    // the boom + rumble
-    const boom = env(ac, s, 1.0, 0.01, 1.9);
-    const lp = ac.createBiquadFilter();
-    lp.type = 'lowpass';
-    lp.frequency.setValueAtTime(900, s);
-    lp.frequency.exponentialRampToValueAtTime(120, s + 1.2);
-    lp.connect(boom);
-    noise(ac, brown, s, 2, lp);
+    if (!ac || !thunder) return;
+    const t = ac.currentTime + 0.005 + Math.max(0, gather - (THUNDER_CRACK - THUNDER_FROM));
+    const len = Math.min(THUNDER_LEN, thunder.duration - THUNDER_FROM);
+    const g = ac.createGain();
+    g.gain.setValueAtTime(THUNDER_VOL, t);
+    g.gain.setValueAtTime(THUNDER_VOL, t + len - 1.2);
+    g.gain.linearRampToValueAtTime(0, t + len);
+    g.connect(out);
+    const src = ac.createBufferSource();
+    src.buffer = thunder;
+    src.connect(g);
+    src.start(t, THUNDER_FROM, len);
+    creditUntil = performance.now() / 1000 + (t - ac.currentTime) + len;
   }),
+
+  /** Start fetching the thunder recording (call before Lightning Strike can be used). */
+  preload() {
+    if (thunderLoading) return;
+    thunderLoading = true;
+    loadThunder().catch(() => {});
+  },
+
+  /** SCREEN coords: the thunder's CC BY credit, bottom-left, while it plays. */
+  renderCredit(ctx) {
+    const left = creditUntil - performance.now() / 1000;
+    if (left <= 0 || !thunderCredit) return;
+    let text = thunderCredit;
+    if (measureText(text) > VIEW_W - 6) text = text.replace(', Wikimedia Commons', ', Commons');
+    const prev = ctx.globalAlpha;
+    ctx.globalAlpha = prev * 0.55 * Math.min(1, left / 0.6);
+    drawText(ctx, text, 3, VIEW_H - 10, { color: '#b9b2c8', shadow: true });
+    ctx.globalAlpha = prev;
+  },
 
   /** Blessed Touch: a soft, swelling major chord with shimmering detune and bell-like sparkles. */
   blessed: safe(() => {

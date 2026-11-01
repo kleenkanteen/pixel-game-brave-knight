@@ -5,7 +5,7 @@
 - **Vite 6 + plain JavaScript (ES modules).** No framework, no TypeScript, no runtime dependencies.
 - **Canvas 2D API** on a single `<canvas>` in `index.html`. Internal resolution is 320×180, integer-scaled to fit the window with crisp (pixelated) pixels.
 - **All art is drawn in code**: characters, horse, props, scenery and the 5×7 pixel font. There are no image or sprite assets.
-- **Audio:** birdsong clips fetched at runtime from the Wikimedia Commons API (CC BY-SA credit shown on screen); the dark woods ambience synthesizes its hum, wind and owl with Web Audio and fetches a public-domain wolf howl from the Commons API; sound effects are synthesized (one shared AudioContext in `core/audio.js`).
+- **Audio:** birdsong clips fetched at runtime from the Wikimedia Commons API (CC BY-SA credit shown on screen); the dark woods ambience synthesizes its hum, wind and owl with Web Audio and fetches a public-domain wolf howl from the Commons API; the Hydra's roars, fireball whoosh and fire blast are public-domain Commons recordings (`hydra/sounds.js`); sound effects are synthesized, except Lightning Strike's thunderclap (Commons, CC BY 4.0, credit shown while it plays); one shared AudioContext in `core/audio.js`.
 - **Fixed-step game loop** (60 Hz) with a tiny event bus. Each feature is a slice built by a `createX(world, deps)` factory exposing `update(dt)` / `render(ctx)`.
 - **Scripts:** `npm run dev` (dev server), `npm run build` (production build to `dist/`), `npm run shoot` (headless Chrome playthrough that saves screenshots and fails on console errors; see `tools/README.md`).
 
@@ -37,7 +37,8 @@ src/
                            knight's Strike and arrows (a non-sticking bow collider); allies follow
                            him up/down a ladder; setBoss() for a boss fight
   hydra/                   the Stage 4 boss: spat fireballs, chin-exposing fire-blast charge-ups
-                           (5 arrows in 6 s stop it), floor-wide blasts, 30 chin hits to kill
+                           (5 arrows in 6 s stop it), row-targeted fire blasts (two heads at once; floor, ledge or platform), 30 chin hits to kill;
+                           sounds.js: its roar, fireball whoosh and fire blast (Commons recordings)
   rage/                    the Potion of Rage it drops: pick up, press 4 (5× damage, 10 s, 2 doses),
                            red fire aura, HUD slot
   ladder/                  a ladder to a ledge: climb up / down (allies follow)
@@ -61,8 +62,8 @@ src/
   title/                   title screen + PLAY button
   intro/                   sequences the opening (climb → dialogue → objective)
   birdsong/                Wikimedia Commons birdsong + credit line
-  sfx/                     synthesized sound effects: sword slash, bow string, lightning, Arrow Storm volley,
-                           Blessed Touch chord
+  sfx/                     sound effects: sword slash, bow string, Arrow Storm volley, Blessed Touch chord
+                           (synthesized); Lightning Strike = a Commons thunderclap + its credit line
   ambience/                dark woods ambience: low hum + wind, then an owl and a Commons wolf howl taking turns
                            20 s apart;
                            one engine shared across Stages (Stage 2 fades it in with rotAt, Stage 3+ full)

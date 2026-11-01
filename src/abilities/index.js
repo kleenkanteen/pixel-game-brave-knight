@@ -70,6 +70,7 @@ export function createAbilities(world, { battle, unlocked: startUnlocked = 0 }) 
   let aimY = 0;
   const volley = []; // {at, x} arrows still to loose
   const lightning = createLightning({ battle, damage: LIGHTNING_DAMAGE, radius: LIGHTNING_HALF });
+  sfx.preload(); // the thunder recording, ready before the first strike
   let t = 0;
   let blessedAt = -99; // t when Blessed Touch was last cast
 
@@ -292,6 +293,7 @@ export function createAbilities(world, { battle, unlocked: startUnlocked = 0 }) 
 
   function renderScreen(ctx) {
     lightning.renderScreen(ctx);
+    sfx.renderCredit(ctx); // the thunder recording's CC BY credit while it plays
     if (unlocked <= 0) return;
     const icons = getIcons();
     ABILITIES.forEach((ab, i) => {

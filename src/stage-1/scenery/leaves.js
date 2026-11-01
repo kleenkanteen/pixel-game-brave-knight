@@ -7,10 +7,11 @@ import { createRng, LEAF } from './util.js';
 const FAMS = ['red', 'orange', 'yellow', 'green', 'red', 'yellow', 'orange'];
 
 /**
- * @param {{n?:number, x0?:number, x1?:number, fams?:string[], seed?:number}} [opts]
- *   n leaves starting between world x0 and x1, coloured from the LEAF families `fams`
+ * @param {{n?:number, x0?:number, x1?:number, fams?:string[], seed?:number, trees?:{x:number,r:number}[]}} [opts]
+ *   n leaves starting between world x0 and x1, coloured from the LEAF families `fams`.
+ *   With `trees`, leaves only start under / near a tree canopy (x0/x1 are ignored).
  */
-export function createLeaves({ n = 42, x0 = -10, x1 = 250, fams = FAMS, seed = 777 } = {}) {
+export function createLeaves({ n = 42, x0 = -10, x1 = 250, fams = FAMS, seed = 777, trees = null } = {}) {
   const rng = createRng(seed);
   const leaves = [];
   for (let i = 0; i < n; i++) {
@@ -20,16 +21,22 @@ export function createLeaves({ n = 42, x0 = -10, x1 = 250, fams = FAMS, seed = 7
     const speed = rng.range(8, 15);
     const fall = (y1 - y0) / speed;
     const rest = rng.range(1, 2.5);
+    const drift = rng.range(8, 30);
+    let lx = rng.range(x0, x1);
+    if (trees?.length) {
+      const T = trees[Math.floor(rng.next() * trees.length) % trees.length];
+      lx = T.x + rng.range(-T.r, T.r) - drift / 2; // the drift carries it back toward the trunk
+    }
     leaves.push({
       front,
-      x0: rng.range(x0, x1),
+      x0: lx,
       y0,
       y1,
       speed,
       fall,
       period: fall + rest,
       rest,
-      drift: rng.range(8, 30),
+      drift,
       amp: rng.range(2, 6),
       w: rng.range(1.2, 2.4),
       spin: rng.range(3, 7),

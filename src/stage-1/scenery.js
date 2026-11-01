@@ -7,6 +7,7 @@ import { buildSky, buildClouds, drawClouds, buildHills } from './scenery/sky.js'
 import { buildWorld } from './scenery/world.js';
 import { createWheat } from './scenery/wheat.js';
 import { createLeaves } from './scenery/leaves.js';
+import { BACK_TREES, MID_TREES } from './scenery/trees.js';
 
 let layers = null;
 function getLayers() {
@@ -17,7 +18,7 @@ function getLayers() {
       hills: buildHills(),
       world: buildWorld(),
       wheat: createWheat(),
-      leaves: createLeaves(),
+      leaves: createLeaves({ trees: [...BACK_TREES, ...MID_TREES] }),
     };
   }
   return layers;

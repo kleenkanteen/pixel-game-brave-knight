@@ -16,7 +16,7 @@ const SWORD_BEHIND = 4; // …and this far behind it (point-blank)
 const RAGE_MULT = 5; // Potion of Rage: the Brave Knight's own hits do 5× damage
 const WIN_DELAY = 1.2; // s after the last monster falls before onWon()
 const BAR_GAP = 3; // px between a head and the bottom of its health bar
-const FALLEN_LINES = ['You have fallen...again.', 'Second time in your life.'];
+const FALLEN_LINES = ['You have fallen'];
 const FALLEN_IN = 0.5; // s the fallen screen takes to fade in (the button works once it's up)
 const AUTO_RESTART = 4; // s after he falls: the Stage restarts by itself (or click Restart sooner)
 const BTN = { w: 64, h: 18, label: 'Restart' };
@@ -28,7 +28,7 @@ BTN.y = 100;
  * (three Zombies, a Werewolf, a Dark Mage at the back) — already under way when the Stage begins.
  *   - Every hero (the three + the Brave Knight) has 100 HP and a health bar above the head.
  *     The allies never drop below 1 HP (they hold the line); at 0 the Brave Knight falls: "You have
- *     fallen...again. Second time in your life." and a Restart button → onRestart() when clicked,
+ *     fallen" and a Restart button → onRestart() when clicked,
  *     or by itself AUTO_RESTART s after he falls (a countdown under the button).
  *   - Monsters go for the closest hero. The Brave Knight can only be targeted (and hurt) once he
  *     has walked in and while no Dialogue is open.
@@ -169,6 +169,9 @@ export function createBattle(world, { allies: allyXs, monsters: monsterXs, dialo
     }
   }
 
+  const ARCHER_HIT_GAP = 20; // s without being attacked before he complains again
+  let lastArcherHit = -Infinity;
+
   function damageHero(h, dmg) {
     if (h === player) {
       if (fallen) return;
@@ -177,6 +180,11 @@ export function createBattle(world, { allies: allyXs, monsters: monsterXs, dialo
     h.hurtT = 0.3;
     if (h === player) k.hurtT = HURT_TIME; // the red hurt flash
     if (h.kind === 'mage') allies.say('mage', 'Ow, my cloak!');
+    if (h.kind === 'archer') {
+      // first hit after 20 s without one
+      if (world.time - lastArcherHit >= ARCHER_HIT_GAP) allies.say('archer', 'Leave the cap alone!');
+      lastArcherHit = world.time;
+    }
     numbers.add(h.x, h.y - h.h - 12, `-${dmg}`, '#ff6a5a');
     world.events.emit('hero:hurt', { hero: h, damage: dmg });
     if (h === player && h.hp <= 0) {

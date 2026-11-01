@@ -6,8 +6,12 @@ import { VIEW_W, VIEW_H } from '../core/constants.js';
 import { buildSky, buildClouds, drawClouds, buildHills } from '../stage-1/scenery/sky.js';
 import { createLeaves } from '../stage-1/scenery/leaves.js';
 import { WORLD_W } from './layout.js';
-import { buildWorld } from './scenery/world.js';
+import { buildWorld, BACK_TREES, MID_TREES } from './scenery/world.js';
 import { buildHaze, createMist } from './scenery/haze.js';
+
+const ALL_TREES = [...BACK_TREES, ...MID_TREES];
+const fallTrees = ALL_TREES.filter((t) => t.x < 480); // before the rot zone
+const rotTrees = ALL_TREES.filter((t) => t.x >= 480);
 
 let layers = null;
 function getLayers() {
@@ -20,8 +24,8 @@ function getLayers() {
       hazeBack: buildHaze(0.5),
       hazeFront: buildHaze(0.17),
       mist: createMist(),
-      leaves: createLeaves({ n: 34, x0: -10, x1: 430, seed: 778 }),
-      rotLeaves: createLeaves({ n: 30, x0: 480, x1: 950, fams: ['violet', 'violetD', 'rotgreen', 'moss'], seed: 779 }),
+      leaves: createLeaves({ n: 34, seed: 778, trees: fallTrees }),
+      rotLeaves: createLeaves({ n: 30, seed: 779, trees: rotTrees, fams: ['violet', 'violetD', 'rotgreen', 'moss'] }),
     };
   }
   return layers;

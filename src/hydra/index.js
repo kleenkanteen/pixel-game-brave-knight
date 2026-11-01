@@ -3,6 +3,7 @@ import { drawText, measureText } from '../core/font.js';
 import { rect, px, line, withAlpha } from '../core/draw.js';
 import { drawBody, drawHead, drawNeck, drawHydraFireball, drawFloorFire, drawFireStream, drawScaled, drawForeleg, NECK_JOIN, BODY } from './art.js';
 import { createGore } from './gore.js';
+import { hydraSounds } from './sounds.js';
 
 export const HYDRA_HITS = 30; // arrows into its chin to kill it
 const WAKE_TIME = 1.8; // s of rising and roaring
@@ -13,7 +14,7 @@ const CHIN_HITS = 5;
 const STAGGER_TIME = 1.8; // stopped blast: it reels, smoke pouring out of its mouth
 const BLAST_SWEEP = 0.8; // s for the wall of fire to sweep the whole floor
 const BLAST_TIME = 1.7;
-const BLAST_DAMAGE = 20; // everyone on the floor (the ledge is safe)
+const BLAST_DAMAGE = 20; // everyone on the row it fires along (other rows are safe)
 const SPIT = [5, 10]; // s between spat fireballs (random)
 const SPIT_WIND = 0.45; // s the spitting head rears back first
 const FIREBALL_SPEED = 92; // px/s: slow enough to see coming and step aside
@@ -55,11 +56,13 @@ const CRACKS = [
  * past `wakeX`; then it rises (onWake) and fights:
  *   - Every SPIT s (random) a side head rears back and spits a fireball at the Brave Knight (now
  *     and then at an ally): it flies straight at where he was, slowly enough to dodge. FIREBALL_DAMAGE.
- *   - Every CHARGE_EVERY s the middle head rears up and opens wide, fire welling in its mouth and the
- *     pale underside of its chin exposed: "Attack its mouth to prevent a fire blast!" — CHIN_HITS
- *     arrows into the chin within CHARGE_TIME s stop it (it reels); otherwise a wall of fire sweeps
- *     the whole floor (from the Hydra to `blastX0`): BLAST_DAMAGE to everyone on it. The ledge is safe.
- *   - The chin is the ONLY place it can be hurt, and only while exposed: each arrow there is one
+ *   - Every CHARGE_EVERY s two of the three heads (random) rear up and open wide, one a beat after the
+ *     other, fire welling in each mouth and the pale underside of each chin exposed: "Attack its mouth
+ *     to prevent a fire blast!" — CHIN_HITS arrows into a chin within CHARGE_TIME s stop that head
+ *     (it reels); otherwise its wall of fire sweeps along ONE row (the floor, the ledge or a platform:
+ *     whichever he's over as it fires, flashing a warning first), from the Hydra to `blastX0`:
+ *     BLAST_DAMAGE to everyone on that row, per blast. Other rows are safe; a jump clears it.
+ *   - A chin is the ONLY place it can be hurt, and only while exposed: each arrow there is one
  *     hit; HYDRA_HITS kill it. Anywhere else, arrows glance off its scales.
  *   - He gets close (within BITE_REACH of its claws, on the floor): the front head rears back, then
  *     lunges its neck out at him and snaps — BITE_DAMAGE and a shove back (knockback) if he's
@@ -78,15 +81,20 @@ const CRACKS = [
  *   x = body centre
  */
 export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, floorAt, knockback = () => {}, onWake, onDefeated }) {
+  hydraSounds.preload(); // fetch its roar + fire recordings while the party crosses the cave
   let state = 'sleep'; // 'sleep' | 'wake' | 'fight' | 'dying' | 'dead'
   let st = 0; // s in the current state
   let t = 0;
   let hp = HYDRA_HITS;
   let chargeCd = FIRST_CHARGE;
   let spitCd = 3;
-  let charge = null; // {t, hits}
-  let blast = null; // {t, hit:Set, from}
-  let stagger = 0;
+  // Fire blasts are per head: any 2 of the 3 heads charge up, each on its own clock, with its own
+  // chin to hit. charges[i] = {t, hits}; blasts[i] = {t, hit:Set, from}; staggers[i] = s left reeling.
+  const charges = [null, null, null];
+  const blasts = [null, null, null];
+  const staggers = [0, 0, 0];
+  let delayed = null; // {head, cd}: the second head of a pair starts charging a moment after the first
+  let hurtHead = 1;
   let spit = null; // {head, t, target}
   let hurtT = 0;
   let toughT = 0;
@@ -116,9 +124,21 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
     { x: HX - 22, y: GROUND_Y - 46 },
   ];
   let pts = heads.map(() => null); // last drawn mouth / chin points
-  let lastChin = { x: HX - 70, y: GROUND_Y - 70 };
+  const lastChins = [{ x: HX - 70, y: GROUND_Y - 70 }, { x: HX - 70, y: GROUND_Y - 70 }, { x: HX - 30, y: GROUND_Y - 100 }];
 
   const alive = () => state !== 'dying' && state !== 'dead';
+  const busy = (i) => !!charges[i] || !!blasts[i] || staggers[i] > 0;
+  const anyCharge = () => charges.some(Boolean);
+  const anyBlast = () => blasts.some(Boolean);
+  const anyStagger = () => staggers.some((v) => v > 0);
+  /** The head to report for single-chin consumers (HUD, aim assist, tools): the charge with least time left. */
+  const mainCharge = () => {
+    let best = -1;
+    charges.forEach((c, i) => {
+      if (c && (best < 0 || c.t > charges[best].t)) best = i;
+    });
+    return best;
+  };
 
   /** Where each head wants to be this tick. */
   function targetOf(i) {
@@ -140,13 +160,14 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
       const rest = [{ x: HX - 66, y: GROUND_Y - 8 }, { x: HX - 50, y: GROUND_Y - 12 }, { x: HX - 22, y: GROUND_Y - 46 }][i];
       p = { x: rest.x + (p.x - rest.x) * rise, y: rest.y + (p.y - rest.y) * rise - Math.sin(rise * Math.PI) * 10 };
     }
-    if (i === 1 && charge) {
-      const tremble = charge.t > CHARGE_TIME - 1.5 ? Math.sin(t * 50) * 1 : 0;
-      return { x: HX - 80 + tremble, y: GROUND_Y - 92 };
+    const c = charges[i];
+    if (c) {
+      // rears up and opens wide; each head has its own spot so two chins never overlap
+      const tremble = c.t > CHARGE_TIME - 1.5 ? Math.sin(t * 50) * 1 : 0;
+      return [{ x: HX - 100 + tremble, y: GROUND_Y - 66 }, { x: HX - 80 + tremble, y: GROUND_Y - 92 }, { x: HX - 26 + tremble, y: GROUND_Y - 106 }][i];
     }
-    if (i === 2 && charge) return { x: HX - 26 + s.x, y: GROUND_Y - 106 + s.y }; // gives it room
-    if (i === 1 && blast) return blast.t < BLAST_TIME - 0.3 ? { x: HX - 84, y: GROUND_Y - 44 } : p;
-    if (i === 1 && stagger > 0) return { x: HX - 74 + Math.sin(t * 9) * 3, y: GROUND_Y - 34 };
+    if (blasts[i]) return blasts[i].t < BLAST_TIME - 0.3 ? [{ x: HX - 90, y: GROUND_Y - 40 }, { x: HX - 84, y: GROUND_Y - 44 }, { x: HX - 48, y: GROUND_Y - 62 }][i] : p;
+    if (staggers[i] > 0) return [{ x: HX - 82 + Math.sin(t * 9) * 3, y: GROUND_Y - 28 }, { x: HX - 74 + Math.sin(t * 9) * 3, y: GROUND_Y - 34 }, { x: HX - 40 + Math.sin(t * 9) * 3, y: GROUND_Y - 80 }][i];
     if (bite && i === 0) {
       const b = bite.t;
       if (b < BITE_WIND) return { x: p.x + 10, y: p.y - 10 }; // rears back
@@ -172,7 +193,7 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
     heads.forEach((h, i) => {
       const g = targetOf(i);
       const lunging = bite && i === 0 && bite.t >= BITE_WIND && bite.t < BITE_WIND + BITE_LUNGE + BITE_HOLD;
-      const k = Math.min(1, dt * (lunging ? 26 : blast && i === 1 ? 12 : spit?.head === i ? 14 : 5));
+      const k = Math.min(1, dt * (lunging ? 26 : blasts[i] ? 12 : spit?.head === i ? 14 : 5));
       h.x += (g.x - h.x) * k;
       h.y += (g.y - h.y) * k;
     });
@@ -189,6 +210,7 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
         state = 'wake';
         st = 0;
         shake = 0.8;
+        hydraSounds.roar();
         onWake();
       }
       return;
@@ -206,33 +228,41 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
     }
     if (state !== 'fight' || dialogue.isOpen()) return;
 
-    // ---- fire blast: charge-up → blast or stagger
+    // ---- fire blasts: two of the three heads charge up (on their own clocks) → blast or stagger
     chargeCd -= dt;
-    if (!charge && !blast && stagger <= 0 && chargeCd <= 0) {
-      charge = { t: 0, hits: 0 };
+    if (!anyCharge() && !anyBlast() && !anyStagger() && !delayed && chargeCd <= 0) {
+      startCharges(2);
       chargeCd = CHARGE_EVERY;
     }
-    if (charge) {
-      charge.t += dt;
-      // fire sucked into the mouth
-      const m = pts[1];
-      if (m && Math.random() < 0.8) {
-        const a = Math.random() * Math.PI * 2;
-        const r = 14 + Math.random() * 10;
-        battle.particle({ x: m.mouthX + Math.cos(a) * r, y: m.mouthY + Math.sin(a) * r, vx: -Math.cos(a) * r * 2.4, vy: -Math.sin(a) * r * 2.4, life: 0.4, colors: FIRE.slice(0, 4) });
-      }
-      if (charge.t >= CHARGE_TIME) {
-        charge = null;
-        blast = { t: 0, hit: new Set(), from: HX - 84 };
-        shake = BLAST_TIME;
-        banner = { text: 'FIRE BLAST!', color: '#ff5a3a', t: 0 };
-      }
+    if (delayed && (delayed.cd -= dt) <= 0) {
+      beginCharge(delayed.head);
+      delayed = null;
     }
-    if (blast) updateBlast(dt);
-    if (stagger > 0) {
-      stagger -= dt;
-      const m = pts[1];
-      if (m && Math.random() < 0.6) battle.particle({ x: m.mouthX, y: m.mouthY, vx: (Math.random() - 0.5) * 10, vy: -14 - Math.random() * 10, life: 0.8, colors: SMOKE, size: 2, drag: 1 });
+    for (let i = 0; i < 3; i++) {
+      const charge = charges[i];
+      if (charge) {
+        charge.t += dt;
+        // fire sucked into the mouth
+        const m = pts[i];
+        if (m && Math.random() < 0.8) {
+          const a = Math.random() * Math.PI * 2;
+          const r = 14 + Math.random() * 10;
+          battle.particle({ x: m.mouthX + Math.cos(a) * r, y: m.mouthY + Math.sin(a) * r, vx: -Math.cos(a) * r * 2.4, vy: -Math.sin(a) * r * 2.4, life: 0.4, colors: FIRE.slice(0, 4) });
+        }
+        if (charge.t >= CHARGE_TIME) {
+          charges[i] = null;
+          blasts[i] = { t: 0, hit: new Set(), from: heads[i].x, lane: laneOfKnight() };
+          shake = Math.max(shake, BLAST_TIME);
+          banner = { text: 'FIRE BLAST!', color: '#ff5a3a', t: 0 };
+          hydraSounds.blast();
+        }
+      }
+      if (blasts[i]) updateBlast(i, dt);
+      if (staggers[i] > 0) {
+        staggers[i] -= dt;
+        const m = pts[i];
+        if (m && Math.random() < 0.6) battle.particle({ x: m.mouthX, y: m.mouthY, vx: (Math.random() - 0.5) * 10, vy: -14 - Math.random() * 10, life: 0.8, colors: SMOKE, size: 2, drag: 1 });
+      }
     }
 
     updateBite(dt);
@@ -248,10 +278,33 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
       if (heroes.length) {
         const knight = heroes.find((h) => h.kind === 'player');
         const target = knight && Math.random() < 0.75 ? knight : heroes[Math.floor(Math.random() * heroes.length)];
-        spit = { head: Math.random() < 0.5 ? 0 : 2, t: 0, target };
+        const free = [0, 2].filter((h) => !busy(h) && delayed?.head !== h);
+        if (free.length) spit = { head: free[Math.floor(Math.random() * free.length)], t: 0, target };
       }
       spitCd = SPIT[0] + Math.random() * (SPIT[1] - SPIT[0]);
     }
+  }
+
+  /** Head `i` rears up and starts charging a fire blast. */
+  function beginCharge(i) {
+    charges[i] = { t: 0, hits: 0 };
+    if (spit?.head === i) spit = null;
+    if (i === 0) bite = null;
+  }
+
+  /** Pick `n` random heads for a fire blast; the first starts now, the next a beat later. */
+  function startCharges(n, picks = null) {
+    const order = picks ?? [0, 1, 2].sort(() => Math.random() - 0.5).slice(0, n);
+    order.forEach((h, k) => {
+      if (k === 0) beginCharge(h);
+      else delayed = { head: h, cd: 1.5 + Math.random() * 1.5 };
+    });
+  }
+
+  /** The row (floor, ledge or platform: the y of its top) the knight is standing over right now. */
+  function laneOfKnight() {
+    const me = prey();
+    return floorAt(me.x, me.y);
   }
 
   /** The knight's centre x, feet y, and whether the Hydra can go for him. */
@@ -268,7 +321,7 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
     if (!bite) {
       biteCd -= dt;
       const close = me.ok && me.x >= HX - 60 - BITE_REACH && me.y > GROUND_Y - 30;
-      if (close && biteCd <= 0 && !charge && !blast && stagger <= 0 && spit?.head !== 0) {
+      if (close && biteCd <= 0 && !busy(0) && delayed?.head !== 0 && spit?.head !== 0) {
         bite = { t: 0, tx: me.x, ty: me.y - 13, hit: false };
         biteCd = BITE_CD[0] + Math.random() * (BITE_CD[1] - BITE_CD[0]);
       }
@@ -371,11 +424,12 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
   /** Start dying (the killing hit landed on head `i`). */
   function kill(i) {
     lastHead = i;
-    charge = null;
-    blast = null;
+    charges.fill(null);
+    blasts.fill(null);
+    staggers.fill(0);
+    delayed = null;
     spit = null;
     bite = null;
-    stagger = 0;
     state = 'dying';
     st = 0;
     shake = 0.6;
@@ -390,6 +444,7 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
     const dx = tx - m.mouthX;
     const dy = ty - m.mouthY;
     const len = Math.hypot(dx, dy) || 1;
+    hydraSounds.whoosh();
     fireballs.push({ x: m.mouthX, y: m.mouthY, vx: (dx / len) * FIREBALL_SPEED, vy: (dy / len) * FIREBALL_SPEED, t: 0 });
     battle.burst(m.mouthX, m.mouthY, 8, { colors: FIRE, speed: 40, up: 10, g: 0, life: [0.2, 0.4] });
   }
@@ -419,24 +474,24 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
     }
   }
 
-  function updateBlast(dt) {
+  function updateBlast(i, dt) {
+    const blast = blasts[i];
     blast.t += dt;
-    const front = blastFront();
-    if (Math.random() < 0.9) battle.burst(front, GROUND_Y - 4, 3, { colors: FIRE, speed: 50, up: 50, g: 100, life: [0.3, 0.6] });
+    const front = blastFront(i);
+    if (Math.random() < 0.9) battle.burst(front, blast.lane - 4, 3, { colors: FIRE, speed: 50, up: 50, g: 100, life: [0.3, 0.6] });
     if (blast.t < BLAST_TIME - 0.4) {
       for (const h of battle.targetableHeroes()) {
-        if (blast.hit.has(h) || h.y < GROUND_Y - 4 || h.x < front) continue;
+        if (blast.hit.has(h) || Math.abs(h.y - blast.lane) > 4 || h.x < front) continue; // only his row (jump it to dodge)
         blast.hit.add(h);
         battle.damageHero(h, BLAST_DAMAGE);
       }
     }
-    if (blast.t >= BLAST_TIME) {
-      blast = null;
-    }
+    if (blast.t >= BLAST_TIME) blasts[i] = null;
   }
 
-  /** Left edge of the fire sweeping across the floor. */
-  function blastFront() {
+  /** Left edge of head `i`'s fire sweeping across the floor. */
+  function blastFront(i) {
+    const blast = blasts[i];
     const p = Math.min(1, blast.t / BLAST_SWEEP);
     return blast.from - (blast.from - blastX0) * (1 - (1 - p) * (1 - p));
   }
@@ -446,10 +501,15 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
     return heads.findIndex((h) => Math.abs(x - h.x) <= 12 && Math.abs(y - h.y) <= 8);
   }
 
+  /** Index of the charging head whose exposed chin contains (x, y), or -1. */
+  function chinAt(x, y) {
+    return [0, 1, 2].findIndex((i) => charges[i] && Math.abs(x - lastChins[i].x) <= CHIN_HALF.w && Math.abs(y - lastChins[i].y) <= CHIN_HALF.h);
+  }
+
   /** 'chin' while exposed, 'scales' on a head, the body or a leg, else null. */
   function hitTest(x, y) {
     if (state === 'dead') return null;
-    if (charge && Math.abs(x - lastChin.x) <= CHIN_HALF.w && Math.abs(y - lastChin.y) <= CHIN_HALF.h) return 'chin';
+    if (chinAt(x, y) >= 0) return 'chin';
     if (headAt(x, y) >= 0) return 'scales';
     const dx = (x - HX) / (BODY.rx + 2);
     const dy = (y - (GROUND_Y - BODY.up)) / (BODY.ry + 2);
@@ -459,34 +519,36 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
 
   function takeArrow(x, y) {
     const where = hitTest(x, y);
-    if (where === 'chin' && charge && alive()) {
+    if (where === 'chin' && alive()) {
       battle.burst(x, y, 8, { colors: ['#fff6c0', '#ffd27a', '#c8b878'], speed: 50, up: 20, g: 120, life: [0.2, 0.4] });
-      hurtChin(1, x, y);
+      hurtChin(chinAt(x, y), 1, x, y);
     } else if (where) {
       const hi = headAt(x, y);
       if (hi >= 0) lastHead = hi;
       battle.burst(x, y, 4, { colors: ['#e8e4dc', '#9a9282'], speed: 40, up: 20, g: 200, life: [0.15, 0.3] });
       if (toughT <= 0) {
         toughT = TOUGH_EVERY;
-        texts.push({ x, y: y - 6, text: charge ? 'The chin!' : 'Too tough!', t: 0 });
+        texts.push({ x, y: y - 6, text: anyCharge() ? 'The chin!' : 'Too tough!', t: 0 });
       }
     }
   }
 
-  /** `n` hits into the open mouth (arrows or lightning): damage, maybe stop the blast, maybe die. */
-  function hurtChin(n, x, y) {
+  /** `n` hits into head `i`'s open mouth (arrows or lightning): damage, maybe stop its blast, maybe die. */
+  function hurtChin(i, n, x, y) {
+    const charge = charges[i];
     hp = Math.max(0, hp - n);
     charge.hits += n;
     hurtT = 0.15;
-    lastHead = 1;
+    hurtHead = i;
+    lastHead = i;
     battle.number(x, y - 8, `-${n}`, '#ffd27a');
     if (hp <= 0) {
-      kill(1);
+      kill(i);
       return;
     }
     if (charge.hits >= CHIN_HITS) {
-      charge = null;
-      stagger = STAGGER_TIME;
+      charges[i] = null;
+      staggers[i] = STAGGER_TIME;
       banner = { text: 'Fire blast stopped!', color: '#9ae86a', t: 0 };
       battle.burst(x, y, 16, { colors: SMOKE, speed: 30, up: 20, g: -10, life: [0.6, 1.1], size: 2 });
     }
@@ -497,12 +559,16 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
    * a bolt landing anywhere from the open head back to the body goes down its throat.
    */
   function takeArea(x0, x1) {
-    if (!charge || !alive()) return false;
-    if (x1 < lastChin.x - 18 || x0 > HX + BODY.rx) return false;
-    const { x, y } = lastChin;
-    battle.burst(x, y, 20, { colors: ['#ffffff', '#c8e8ff', '#7ab8ff', '#ffe07a'], speed: 80, up: 30, g: 60, life: [0.2, 0.5] });
-    hurtChin(LIGHTNING_HITS, x, y);
-    return true;
+    if (!anyCharge() || !alive()) return false;
+    let any = false;
+    for (let i = 0; i < 3 && alive(); i++) {
+      if (!charges[i] || x1 < lastChins[i].x - 18 || x0 > HX + BODY.rx) continue;
+      const { x, y } = lastChins[i];
+      battle.burst(x, y, 20, { colors: ['#ffffff', '#c8e8ff', '#7ab8ff', '#ffe07a'], speed: 80, up: 30, g: 60, life: [0.2, 0.5] });
+      hurtChin(i, LIGHTNING_HITS, x, y);
+      any = true;
+    }
+    return any;
   }
 
   const collider = {
@@ -515,7 +581,10 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
     get alive() {
       return state !== 'dead';
     },
-    aimPoint: () => (charge ? { x: lastChin.x, y: lastChin.y } : null),
+    aimPoint: () => {
+      const i = mainCharge();
+      return i >= 0 ? { x: lastChins[i].x, y: lastChins[i].y } : null;
+    },
     hit: (x, y) => alive() && hitTest(x, y) !== null,
     onArrow: (x, y) => takeArrow(x, y),
     onArea: (x0, x1) => takeArea(x0, x1),
@@ -558,13 +627,13 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
       let open = 0;
       let glow = 0;
       let e = eye;
-      if (i === 1 && charge) {
-        open = Math.min(1, charge.t / 0.8);
-        glow = Math.min(1, charge.t / CHARGE_TIME) * 0.8 + 0.2;
-      } else if (i === 1 && blast) {
+      if (charges[i]) {
+        open = Math.min(1, charges[i].t / 0.8);
+        glow = Math.min(1, charges[i].t / CHARGE_TIME) * 0.8 + 0.2;
+      } else if (blasts[i]) {
         open = 1;
         glow = 1;
-      } else if (i === 1 && stagger > 0) {
+      } else if (staggers[i] > 0) {
         open = 0.4;
         e = 'daze';
       } else if (bite && i === 0) {
@@ -575,8 +644,8 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
         glow = spit.t < SPIT_WIND ? 0.6 : 0;
       } else if (state === 'wake' && st > 0.5 && st < 1.5) open = 0.8; // roar
       else if (dying) open = 0.5 + 0.3 * Math.sin(t * 9 + i); // wailing
-      pts[i] = drawHead(ctx, h.x, h.y, -1, { open, glow, eye: e, chinHot: i === 1 && !!charge, dim, hurt: i === 1 && hurtT > 0, t });
-      if (i === 1) lastChin = { x: pts[1].chinX, y: pts[1].chinY };
+      pts[i] = drawHead(ctx, h.x, h.y, -1, { open, glow, eye: e, chinHot: !!charges[i], dim, hurt: i === hurtHead && hurtT > 0, t });
+      lastChins[i] = { x: pts[i].chinX, y: pts[i].chinY };
       if (i === order[order.length - 2]) drawForeleg(ctx, HX, GROUND_Y, t); // in front of the necks, behind the front head
     }
   }
@@ -617,22 +686,32 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
 
   function renderFront(ctx) {
     for (const f of fireballs) drawHydraFireball(ctx, f.x, f.y, t);
-    if (blast && pts[1]) {
-      const front = blastFront();
-      const fade = Math.min(1, (BLAST_TIME - blast.t) / 0.4);
-      if (blast.t < BLAST_TIME - 0.3) drawFireStream(ctx, pts[1].mouthX, pts[1].mouthY, pts[1].mouthX - 14, GROUND_Y - 2, t);
-      drawFloorFire(ctx, front, blast.from + 10, GROUND_Y + 1, 22, t, fade);
-    }
-    // the exposed chin: a pulsing target bracket round it so it reads in the dark
-    if (charge) {
-      const { x, y } = lastChin;
-      const on = Math.floor(t * 6) % 2 === 0;
-      const c = on ? '#fff0a0' : '#ff8a2a';
-      const w = CHIN_HALF.w + 2;
-      const h = CHIN_HALF.h + 2;
-      for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-        rect(ctx, x + sx * w - (sx > 0 ? 2 : 0), y + sy * h, 3, 1, c);
-        rect(ctx, x + sx * w, y + sy * h - (sy > 0 ? 2 : 0), 1, 3, c);
+    for (let i = 0; i < 3; i++) {
+      const blast = blasts[i];
+      if (blast && pts[i]) {
+        const front = blastFront(i);
+        const fade = Math.min(1, (BLAST_TIME - blast.t) / 0.4);
+        if (blast.t < BLAST_TIME - 0.3) drawFireStream(ctx, pts[i].mouthX, pts[i].mouthY, pts[i].mouthX - 14, blast.lane - 2, t);
+        drawFloorFire(ctx, front, blast.from + 10, blast.lane + 1, 22, t, fade);
+      }
+      // the final seconds: the row it will blast (the one he's on) flashes along its length
+      if (charges[i] && charges[i].t > CHARGE_TIME - 1.5 && Math.floor(t * 10) % 2 === 0) {
+        const ly = laneOfKnight();
+        withAlpha(ctx, 0.8, () => {
+          for (let x = Math.max(0, blastX0); x < heads[i].x; x += 4) rect(ctx, x, ly - 1, 2, 2, '#ff5a3a');
+        });
+      }
+      // the exposed chin: a pulsing target bracket round it so it reads in the dark
+      if (charges[i]) {
+        const { x, y } = lastChins[i];
+        const on = Math.floor(t * 6) % 2 === 0;
+        const c = on ? '#fff0a0' : '#ff8a2a';
+        const w = CHIN_HALF.w + 2;
+        const h = CHIN_HALF.h + 2;
+        for (const [sx, sy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+          rect(ctx, x + sx * w - (sx > 0 ? 2 : 0), y + sy * h, 3, 1, c);
+          rect(ctx, x + sx * w, y + sy * h - (sy > 0 ? 2 : 0), 1, 3, c);
+        }
       }
     }
     for (const tx of texts) {
@@ -664,17 +743,22 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
     rect(ctx, x, y, fill, 1, '#9ae86a');
     for (let i = 1; i < HYDRA_HITS; i++) if (i % 5 === 0) rect(ctx, x + Math.round((w * i) / HYDRA_HITS), y, 1, 4, '#14101c');
 
-    if (charge) {
+    if (anyCharge()) {
       const msg = 'Attack its mouth to prevent a fire blast!';
-      const urgent = charge.t > CHARGE_TIME - 2 && Math.floor(t * 8) % 2 === 0;
+      const urgent = charges.some((c) => c && c.t > CHARGE_TIME - 2) && Math.floor(t * 8) % 2 === 0;
       drawText(ctx, msg, Math.round(VIEW_W / 2 - measureText(msg) / 2), 22, { color: urgent ? '#ffffff' : '#ff9a4a', outline: '#14101c' });
-      const left = Math.max(0, CHARGE_TIME - charge.t);
-      const info = `Arrows ${charge.hits}/${CHIN_HITS}   ${Math.ceil(left)}`;
-      drawText(ctx, info, Math.round(VIEW_W / 2 - measureText(info) / 2), 33, { color: '#fff6d8', outline: '#14101c' });
-      const bw = 80;
-      const bx = Math.round((VIEW_W - bw) / 2);
-      rect(ctx, bx - 1, 43, bw + 2, 4, '#14101c');
-      rect(ctx, bx, 44, Math.round((bw * left) / CHARGE_TIME), 2, left < 2 ? '#ff4a2a' : '#ffb03a');
+      let row = 0;
+      for (const charge of charges) {
+        if (!charge) continue;
+        const dy = row++ * 20;
+        const left = Math.max(0, CHARGE_TIME - charge.t);
+        const info = `Arrows ${charge.hits}/${CHIN_HITS}   ${Math.ceil(left)}`;
+        drawText(ctx, info, Math.round(VIEW_W / 2 - measureText(info) / 2), 33 + dy, { color: '#fff6d8', outline: '#14101c' });
+        const bw = 80;
+        const bx = Math.round((VIEW_W - bw) / 2);
+        rect(ctx, bx - 1, 43 + dy, bw + 2, 4, '#14101c');
+        rect(ctx, bx, 44 + dy, Math.round((bw * left) / CHARGE_TIME), 2, left < 2 ? '#ff4a2a' : '#ffb03a');
+      }
     } else if (banner) {
       withAlpha(ctx, Math.min(1, (BANNER_TIME - banner.t) / 0.4), () =>
         drawText(ctx, banner.text, Math.round(VIEW_W / 2 - measureText(banner.text) / 2), 24, { color: banner.color, outline: '#14101c' }),
@@ -694,13 +778,16 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
       const b = bloat();
       if (b > 0) out.push({ x: HX - 20, y: GROUND_Y - 40, r: Math.round(76 + 30 * b), tint: '#ff3a2a' });
     }
-    if (charge && pts[1]) out.push({ x: pts[1].mouthX, y: pts[1].mouthY, r: 14 + Math.round((charge.t / CHARGE_TIME) * 30), warm: true });
+    charges.forEach((c, i) => {
+      if (c && pts[i]) out.push({ x: pts[i].mouthX, y: pts[i].mouthY, r: 14 + Math.round((c.t / CHARGE_TIME) * 30), warm: true });
+    });
     for (const f of fireballs) out.push({ x: f.x, y: f.y, r: 20, warm: true });
-    if (blast) {
-      const front = blastFront();
-      for (let x = front; x < blast.from; x += 40) out.push({ x, y: GROUND_Y - 10, r: 34, warm: true });
-      if (pts[1]) out.push({ x: pts[1].mouthX, y: pts[1].mouthY, r: 30, warm: true });
-    }
+    blasts.forEach((blast, i) => {
+      if (!blast) return;
+      const front = blastFront(i);
+      for (let x = front; x < blast.from; x += 40) out.push({ x, y: blast.lane - 10, r: 34, warm: true });
+      if (pts[i]) out.push({ x: pts[i].mouthX, y: pts[i].mouthY, r: 30, warm: true });
+    });
     return out;
   }
 
@@ -714,16 +801,18 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
       return hp;
     },
     get charging() {
-      return charge ? { t: charge.t, hits: charge.hits } : null;
+      const c = charges[mainCharge()];
+      return c ? { t: c.t, hits: c.hits } : null;
     },
     get biting() {
       return bite ? { t: bite.t, hit: bite.hit } : null;
     },
     get blasting() {
-      return blast !== null;
+      return anyBlast();
     },
     get chin() {
-      return { ...lastChin };
+      const i = mainCharge();
+      return { ...lastChins[i >= 0 ? i : 1] };
     },
     get shake() {
       return shake;
@@ -736,10 +825,14 @@ export function createHydra(world, { x: HX, wakeX, blastX0, battle, dialogue, fl
       return popped;
     },
     gore,
-    /** Debug / tools: start a charge-up now. */
-    forceCharge() {
-      if (state === 'fight' && !charge && !blast) {
-        charge = { t: 0, hits: 0 };
+    /** Every charging head, with its own chin and arrow count (debug / tools). */
+    get charges() {
+      return [0, 1, 2].filter((i) => charges[i]).map((i) => ({ head: i, t: charges[i].t, hits: charges[i].hits, chin: { ...lastChins[i] } }));
+    },
+    /** Debug / tools: start a charge-up now on the given heads (default: just the middle one). */
+    forceCharge(heads = [1]) {
+      if (state === 'fight' && !anyCharge() && !anyBlast()) {
+        startCharges(heads.length, heads);
         chargeCd = CHARGE_EVERY;
       }
     },

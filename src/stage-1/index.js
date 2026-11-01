@@ -2,7 +2,8 @@ import { defineStage } from '../core/stage.js';
 import { createEvents } from '../core/events.js';
 import { createCamera } from '../core/camera.js';
 import { KNIGHT_W } from '../core/constants.js';
-import { WORLD_W, GRAVE_X, GRAVE_TOP_Y, SWORD_X, FARMER_X, HORSE_X } from './layout.js';
+import { createHint } from '../hint/index.js';
+import { WORLD_W, CHURCH_X, CHURCH_W, GRAVE_X, GRAVE_TOP_Y, SWORD_X, FARMER_X, HORSE_X } from './layout.js';
 import { renderBack, renderFront } from './scenery.js';
 import { darkWoods } from '../ambience/index.js';
 
@@ -69,7 +70,13 @@ export function createStage1() {
       // the first time he picks up his sword, he has a word with it
       world.events.on('sword:picked', () => dialogue.open('sword', ['Knight: Ah, my trusty sword. Still sharp. Unlike my memory.']));
 
-      s = { prompts, dialogue, objective, birdsong, farmer, horse, player, sword, title, intro, exit };
+      // walked past the church without his sword → point him back to it
+      const swordHint = createHint(world, {
+        text: 'Pick up your sword',
+        when: () => !world.knight.hasSword && world.knight.x > CHURCH_X + CHURCH_W / 2,
+      });
+
+      s = { swordHint, prompts, dialogue, objective, birdsong, farmer, horse, player, sword, title, intro, exit };
       world.camera.follow(world.knight.x + KNIGHT_W / 2);
     },
 
@@ -86,6 +93,7 @@ export function createStage1() {
       s.farmer.update(dt);
       s.horse.update(dt); // after the farmer: talking takes precedence over mounting
       s.exit.update(dt);
+      s.swordHint.update(dt);
       s.objective.update(dt);
       s.birdsong.update(dt);
       s.prompts.update(dt); // last: commits this tick's Prompt requests
@@ -112,6 +120,7 @@ export function createStage1() {
       s.prompts.render(ctx);
       ctx.restore();
 
+      s.swordHint.render(ctx);
       s.exit.render(ctx);
       s.dialogue.render(ctx);
       s.objective.render(ctx);
