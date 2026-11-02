@@ -18,6 +18,7 @@ npm run shoot -- tools/steps/stage-5-ultimate.mjs  # the plaza: 2 potions, 23 pl
 npm run shoot -- tools/steps/stage-5-reptiles.mjs  # close-ups of the drawbridge Reptilians: crouch, bite, goo
 npm run shoot -- tools/steps/stage-5-party.mjs  # the ending: Dark Lord down, the party talk, blackout, the disco
 npm run shoot -- tools/steps/mercy.mjs  # 2 deaths to a boss: the "Press 5" offer, the Hydra explodes, the Dark Lord dies
+npm run shoot -- tools/steps/abilities-click.mjs  # clicking the ability bar's boxes works like keys 1–3
 npm run shoot -- tools/steps/skip.mjs  # easter egg: 8 rides on to the next Stage, mounted
 ```
 

@@ -44,6 +44,7 @@ const GLOW_FADE = 0.6; // …and s it fades away at the end of the boon
  *   3 Blessed Touch — the Holy Knight heals every hero by 20% and doubles all damage for 5 s;
  *     a radiant glow bursts out of everyone, then keeps glowing softer until the boon ends.
  *   While aiming, the same key again or Esc cancels; the other aimed key switches to it.
+ *   Clicking (tapping) an ability's box in the bar does the same as its key.
  * Each recharges over its cooldown (10 s). HUD top-left: three boxes with the icons and 1/2/3;
  * a used icon dims to 50% and refills to full from the bottom up as it recharges.
  * Must be updated BEFORE the Dialogue so an aiming click is consumed (never a "Next" / Strike).
@@ -124,6 +125,16 @@ export function createAbilities(world, { battle, unlocked: startUnlocked = 0 }) 
     aimY = Math.max(cam.y, Math.min(GROUND_Y, cam.toWorldY(my)));
   }
 
+  /** The unlocked ability box under the mouse when `clicked` (HUD px), else -1. */
+  function slotAt(clicked) {
+    if (!clicked) return -1;
+    const { x, y } = input.mouse;
+    if (y < HUD_Y || y >= HUD_Y + SLOT) return -1;
+    const i = Math.floor((x - HUD_X) / (SLOT + SLOT_GAP));
+    const inBox = i >= 0 && x - HUD_X - i * (SLOT + SLOT_GAP) < SLOT;
+    return inBox && i < unlocked ? i : -1;
+  }
+
   function update(dt) {
     t += dt;
     for (let i = 0; i < cd.length; i++) {
@@ -134,10 +145,12 @@ export function createAbilities(world, { battle, unlocked: startUnlocked = 0 }) 
       readyFlash[i] = Math.max(0, readyFlash[i] - dt);
     }
 
-    // keys
-    if (input.wasPressed('ability1')) toggleAim('lightning', 0);
-    if (input.wasPressed('ability2')) toggleAim('storm', 1);
-    if (input.wasPressed('ability3') && ready(2)) blessedTouch();
+    // keys, or a click (tap) on the ability's box in the bar
+    const clickedSlot = slotAt(input.wasClicked());
+    if (clickedSlot >= 0) input.consumeClick(); // never also a Strike / a shot / a cast
+    if (input.wasPressed('ability1') || clickedSlot === 0) toggleAim('lightning', 0);
+    if (input.wasPressed('ability2') || clickedSlot === 1) toggleAim('storm', 1);
+    if ((input.wasPressed('ability3') || clickedSlot === 2) && ready(2)) blessedTouch();
     if (aiming && (input.wasPressed('cancel') || !canUse())) aiming = null;
 
     // aiming: the click is ours

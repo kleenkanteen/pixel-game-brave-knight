@@ -60,7 +60,7 @@ src/
   ladder/                  a ladder to a ledge: climb up / down (allies follow)
   abilities/               the party's abilities after the Stage 3 battle: 1 Lightning Strike (Mage),
                            2 Arrow Storm (Archer, click an area), 3 Blessed Touch (Holy Knight: heal
-                           20% + double damage 5 s); 10 s cooldowns; top-left ability bar
+                           20% + double damage 5 s); 10 s cooldowns; top-left ability bar (click/tap a box = its key)
   touch/                   phone gamepad (touch devices, landscape): action buttons bottom-left (1–4, Q, V, B,
                            SPACE), D-pad bottom-right; feeds input.pressVirtual(); a finger on the canvas = the mouse
   exit/                    "Move to next screen →" at a Stage's right edge; walks him off
