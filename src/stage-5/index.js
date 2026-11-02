@@ -49,7 +49,7 @@ const VICTORY_TIME = 6; // s the victory banner stays up; then the knight wants 
 const VICTORY_MUSIC_AT = 1.5; // s after he falls: the victory music comes in (the boss music fading out)
 const BLACKOUT = { out: 1.2, hold: 0.6, in: 1.2 }; // s: the screen dims to black, the party is set up, it comes back
 const BALL_Y = -150; // the disco ball's centre (world y), over the middle of the plaza
-const RIDE_HINT = 'Press v to get off. The horse waits here.';
+const RIDE_HINT = 'Press space to get off. The horse waits here.';
 const STAGE_POTIONS = 2; // doses of Rage he always starts Stage 5 with
 /** As the fight starts: how each ability (and the potion) works. */
 const ABILITY_TIPS = [
@@ -398,7 +398,7 @@ export function createStage5() {
         // riding, he gets off before the second gate: the horse stays outside the plaza
         if (k.mounted) {
           s.player.setMaxX(RIDE_MAX_X);
-          if (k.x >= RIDE_MAX_X - 12 && k.controlsEnabled && !s.dialogue.isOpen()) s.prompts.show(RIDE_HINT, k.x + KNIGHT_W / 2, k.y - k.height);
+          if (k.x >= RIDE_MAX_X - 12 && k.controlsEnabled && !s.dialogue.isOpen()) s.prompts.show(RIDE_HINT, k.x + KNIGHT_W / 2, k.y - k.height, { interact: false });
         } else s.player.setMaxX(KEEP_X0 - KNIGHT_W - 2);
         if (k.x >= PLAZA_IN_X && !k.mounted) {
           setPhase('closing');

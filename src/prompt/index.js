@@ -21,7 +21,7 @@ const KEY_WORDS = /^(space|Space|Click|click|v|V|B|Q)$/;
  *
  * @param {import('../core/stage.js').World} world
  * @returns {{
- *   show(text:string, worldX:number, topY:number):void,  // centred on worldX, ~6px above topY
+ *   show(text:string, worldX:number, topY:number, opts?:{interact?:boolean}):void,  // centred on worldX, ~6px above topY
  *   update(dt:number):void,
  *   render(ctx:CanvasRenderingContext2D):void,           // WORLD coordinates
  * }}
@@ -43,15 +43,16 @@ export function createPrompts(world) {
   }
 
   return {
-    show(text, worldX, topY) {
-      pending.push({ text, x: worldX, y: topY });
+    /** opts.interact false: a Space prompt that isn't something to interact with (getting off the horse). */
+    show(text, worldX, topY, opts = {}) {
+      pending.push({ text, x: worldX, y: topY, interact: opts.interact !== false });
     },
     update(dt) {
       t += dt;
       visible = pending;
       pending = [];
       // something to interact with: space interacts instead of jumping (read by the player next tick)
-      world.interactable = visible.some((p) => /\bspace\b/i.test(p.text));
+      world.interactable = visible.some((p) => p.interact && /\bspace\b/i.test(p.text));
     },
     render(ctx) {
       const camX = world.camera.x;

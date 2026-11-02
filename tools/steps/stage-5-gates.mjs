@@ -35,7 +35,7 @@ export default [
   { label: 'mounted', hold: 'ArrowRight', until: `${K}.x >= 1130`, timeout: 15000 },
   { hold: 'ArrowRight', ms: 800, wait: 200, shot: 's5g-03-get-off' },
   { eval: `JSON.stringify({x: ${K}.x, mounted: ${K}.mounted, bound: ${K}.boundR, phase: ${W}.phase})` },
-  { key: 'KeyV', wait: 1200 },
+  { key: 'Space', wait: 1200 },
   { hold: 'ArrowRight', until: `${W}.phase === 'zoom'`, timeout: 10000, wait: 400, shot: 's5g-03b-horse-waits' },
   { until: `${W}.phase === 'plaza'`, timeout: 6000, wait: 200 },
   { label: 'fall in the plaza', eval: `(${B}.damageHero(${B}.player, 999), 'ok')` },

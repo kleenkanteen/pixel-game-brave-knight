@@ -6,7 +6,6 @@ const BINDINGS = {
   right: ['KeyD', 'ArrowRight'],
   jump: ['KeyW', 'ArrowUp'],
   interact: ['Space'],
-  dismount: ['KeyV'],
   bow: ['KeyB'],
   switch: ['KeyQ'],
   ability1: ['Digit1', 'Numpad1'],
@@ -19,14 +18,17 @@ const BINDINGS = {
   slayBoss: ['Digit9', 'Numpad9'], // hack: the Dark Lord (and his minions) die on the spot
 };
 
+const MODIFIERS = new Set(['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Tab']);
 const PREVENT = new Set(['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']);
 
 /**
  * Keyboard + mouse input in game terms.
- * - isDown(action) / wasPressed(action) for 'left' | 'right' | 'jump' | 'interact' | 'dismount' | 'bow' | 'switch' |
+ * - isDown(action) / wasPressed(action) for 'left' | 'right' | 'jump' | 'interact' | 'bow' | 'switch' |
  *   'ability1' | 'ability2' | 'ability3' | 'potion' | 'mercy' | 'cancel' | 'skip' | 'slayBoss'
  * - wasClicked() — a left click happened since the last update tick;
  *   consumeClick() lets a slice (e.g. Dialogue) swallow it so later slices see no click.
+ * - wasAnyKey() — any key (not a lone modifier) or touch button was pressed since the last tick;
+ *   consumeKeys() swallows those presses so no action fires from them this tick.
  * - isMouseDown() — the left button is held; wasReleased() — it went up since the last tick
  *   (the bow's click-drag-release aim).
  * - mouse {x, y} in internal (320×180) pixels.
@@ -39,6 +41,7 @@ export function createInput(canvas) {
   let lastTouch = -1e9; // ignore emulated mouse events right after a touch
   const pressed = new Set(); // actions pressed since last endFrame
   let clicked = false;
+  let anyKey = false;
   let mouseHeld = false;
   let released = false;
   const mouse = { x: -1, y: -1 };
@@ -49,6 +52,7 @@ export function createInput(canvas) {
     if (PREVENT.has(e.code)) e.preventDefault();
     if (e.repeat) return;
     down.add(e.code);
+    if (!MODIFIERS.has(e.key)) anyKey = true;
     const action = actionOf(e.code);
     if (action) pressed.add(action);
   });
@@ -112,7 +116,10 @@ export function createInput(canvas) {
     mouse,
     /** On-screen buttons: hold / release an action as if its key were held. */
     pressVirtual(action) {
-      if (!virtual.has(action)) pressed.add(action);
+      if (!virtual.has(action)) {
+        pressed.add(action);
+        anyKey = true;
+      }
       virtual.add(action);
     },
     releaseVirtual(action) {
@@ -126,8 +133,14 @@ export function createInput(canvas) {
     consumeClick() {
       clicked = false;
     },
+    wasAnyKey: () => anyKey,
+    consumeKeys() {
+      pressed.clear();
+      anyKey = false;
+    },
     endFrame() {
       pressed.clear();
+      anyKey = false;
       clicked = false;
       released = false;
     },

@@ -225,8 +225,9 @@ export function createPlayer(world, { spawnX, maxX: maxX0, emergeY = GROUND_Y, f
     else if (knight.controlsEnabled) {
       if (input.isDown('left')) dir -= 1;
       if (input.isDown('right')) dir += 1;
-      // space jumps too, unless a "Press space to …" Prompt is up (then it interacts)
-      const spaceJump = input.wasPressed('interact') && !world.interactable;
+      // space jumps too, unless a "Press space to …" Prompt is up (then it interacts) or he's
+      // riding (then it gets him off the horse)
+      const spaceJump = input.wasPressed('interact') && !world.interactable && !knight.mounted;
       if (knight.onGround && (input.wasPressed('jump') || spaceJump)) {
         knight.vy = JUMP_VY;
         knight.onGround = false;

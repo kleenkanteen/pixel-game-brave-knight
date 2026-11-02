@@ -44,13 +44,14 @@ function wrap(line) {
  * Dialogue slice: translucent dark panel with a pixel border, centred in the upper-middle.
  * Lines are typed one character at a time (~45 chars/s); line 2 stacks under line 1 and is
  * typed after line 1 finishes. "Speaker:" (first line) in gold. Then a blinking "Next →".
- * A click while open is CONSUMED (input.consumeClick) so it never becomes a Strike:
- *   still typing → reveal everything; fully shown → close and emit 'dialogue:closed' {id}.
+ * A click or any key while open is CONSUMED (input.consumeClick / consumeKeys) so it never becomes
+ * a Strike, jump or interact: still typing → reveal everything; fully shown → close and emit
+ * 'dialogue:closed' {id}. Its first tick ignores (and swallows) input: the press that opened it.
  * Must be updated BEFORE slices that read clicks (sword).
  * open(id, lines, {align:'center', heading:true}) centres every line (a sign); heading colours
  * the first line red, as a title.
  * Long lines word-wrap. play(id, panels) shows several panels in a row (a conversation):
- * each click past a finished panel opens the next; 'dialogue:closed' {id} fires after the last.
+ * each click / key past a finished panel opens the next; 'dialogue:closed' {id} fires after the last.
  *
  * @param {import('../core/stage.js').World} world
  * @returns {{
@@ -71,7 +72,7 @@ export function createDialogue(world) {
     const lines = rawLines.flatMap(wrap);
     const total = lines.reduce((n, l) => n + [...l].length, 0);
     const center = opts.align === 'center';
-    current = { id, lines, shown: 0, total, t: 0, doneT: -1, center, heading: !!opts.heading, y: opts.y ?? PANEL_Y };
+    current = { id, lines, shown: 0, total, t: 0, doneT: -1, center, heading: !!opts.heading, y: opts.y ?? PANEL_Y, fresh: true };
   }
 
   function open(id, lines, opts) {
@@ -91,8 +92,17 @@ export function createDialogue(world) {
     current.t += dt;
     current.shown = Math.min(current.total, current.shown + CHARS_PER_SEC * dt);
     if (current.shown >= current.total) current.doneT = current.doneT < 0 ? 0 : current.doneT + dt;
-    if (world.input.wasClicked()) {
-      world.input.consumeClick();
+    const { input } = world;
+    if (current.fresh) {
+      // the press that opened it (Space at a sign) doesn't also move it on, nor act elsewhere
+      current.fresh = false;
+      input.consumeClick();
+      input.consumeKeys();
+      return;
+    }
+    if (input.wasClicked() || input.wasAnyKey()) {
+      input.consumeClick();
+      input.consumeKeys(); // the key only moves the dialogue on: no jump, Strike or interact from it
       if (current.shown < current.total) {
         current.shown = current.total;
       } else if (queue.length) {

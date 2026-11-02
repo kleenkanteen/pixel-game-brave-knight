@@ -61,7 +61,7 @@ src/
   abilities/               the party's abilities after the Stage 3 battle: 1 Lightning Strike (Mage),
                            2 Arrow Storm (Archer, click an area), 3 Blessed Touch (Holy Knight: heal
                            20% + double damage 5 s); 10 s cooldowns; top-left ability bar (click/tap a box = its key; the potion slot too)
-  touch/                   phone gamepad (touch devices, landscape): action buttons bottom-left (1–4, Q, V, B,
+  touch/                   phone gamepad (touch devices, landscape): action buttons bottom-left (1–4, Q, B,
                            SPACE), D-pad bottom-right; feeds input.pressVirtual(); a finger on the canvas = the mouse
   exit/                    "Move to next screen →" at a Stage's right edge; walks him off
   player/                  the Brave Knight: movement, jump, climb-out, mount/dismount hop, ladders,

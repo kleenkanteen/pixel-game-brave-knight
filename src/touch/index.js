@@ -10,7 +10,6 @@ const NUMBERS = [
 ];
 const ACTIONS = [
   ['Q', 'switch', ''],
-  ['V', 'dismount', ''],
   ['B', 'bow', ''],
   ['SPACE', 'interact', 'space'],
 ];

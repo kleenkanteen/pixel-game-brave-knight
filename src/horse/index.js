@@ -8,7 +8,7 @@ const BODY_W = 34; // barrel width, for the proximity rule
 const SADDLE_C = 24; // saddle centre, local x (symmetric: same when mirrored)
 const KNIGHT_HALF = 8;
 const TOSS_TIME = 0.45; // happy head toss right after the knight lands in the saddle
-const HINT_TIME = 5; // s "Press v to dismount horse" stays up after mounting
+const HINT_TIME = 5; // s "Press space to dismount horse" stays up after mounting
 const DISMOUNT_BACK = 28; // px behind the saddle he lands when hopping off
 const FOLLOW_START = 56; // centre-to-centre px: horse starts walking after him beyond this
 const FOLLOW_STOP = 40; // …and stops once this close
@@ -45,7 +45,8 @@ const C = {
  *   'mounting'    the knight is hopping into the saddle
  *   'ridden'      drawn under the knight wherever he goes (gallop while moving, legs tucked in a
  *                 jump, dust); the player slice owns movement (1.5× speed) and Strike.
- *                 "Press v to dismount horse" above him for 5 s after mounting; V → hop off.
+ *                 "Press space to dismount horse" above him for 5 s after mounting; Space → hop
+ *                 off, unless a "Press space to …" Prompt offers something else (a sign, a ladder).
  *   'dismounting' he is hopping down behind the horse
  *   'following'   walks after him (canters when far behind), stops a little short of him
  * Standing or following + knight near (proximity rule) + NOT near the farmer (talking takes
@@ -167,9 +168,9 @@ export function createHorse(world, { x = 0, carried = null, prompts, dialogue, f
 
       if (hintT > 0) {
         hintT -= dt;
-        if (!world.exitNear) prompts.show('Press v to dismount horse', k.x + KNIGHT_HALF, k.y - k.height);
+        if (!world.exitNear) prompts.show('Press space to dismount horse', k.x + KNIGHT_HALF, k.y - k.height, { interact: false });
       }
-      if (k.controlsEnabled && k.onGround && !dialogue.isOpen() && input.wasPressed('dismount')) {
+      if (k.controlsEnabled && k.onGround && !dialogue.isOpen() && input.wasPressed('interact') && !world.interactable) {
         mode = 'dismounting';
         hintT = 0;
         moving = false;

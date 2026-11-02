@@ -2,7 +2,7 @@ import { defineStage } from '../core/stage.js';
 import { createEvents } from '../core/events.js';
 import { createCamera } from '../core/camera.js';
 import { KNIGHT_W } from '../core/constants.js';
-import { WORLD_W, ENTER_X, SIGN_X, TUNNEL_X0, LEDGE, SHELVES, HYDRA_X, HYDRA_WAKE_X, KNIGHT_MAX_X, MONSTERS, floorAt } from './layout.js';
+import { WORLD_W, ENTER_X, SIGN_X, TUNNEL_X0, LEDGE, SHELVES, HYDRA_X, HYDRA_WAKE_X, KNIGHT_MAX_X, MONSTERS, floorAt, ceilAt } from './layout.js';
 import { renderBack, renderFront, renderDark, renderTorches } from './scenery.js';
 import { darkWoods } from '../ambience/index.js';
 
@@ -143,7 +143,9 @@ export function createStage4() {
       const ladder = createLadder(world, { x: LEDGE.ladderX, topY: LEDGE.y, prompts, dialogue, player });
       const sword = createSword(world, { x: null, prompts, dialogue });
       const ledgeCollider = { hit: (x, y) => SHELVES.some((L) => x >= L.x0 && x <= L.x1 && y >= L.y && y < L.y + 8) };
-      const bow = createBow(world, { x: null, prompts, dialogue, colliders: [battle.collider, hydra.collider, ledgeCollider] });
+      // the rock ceiling (and the cliff brow over the cave mouth): arrows stick in it
+      const ceilingCollider = { hit: (x, y) => { const c = ceilAt(x); return c !== null && y < c; } };
+      const bow = createBow(world, { x: null, prompts, dialogue, colliders: [battle.collider, hydra.collider, ledgeCollider, ceilingCollider] });
       const horse = carry.horse ? createHorse(world, { carried: carry.horse, prompts, dialogue, yieldTo: [sign, ladder], player }) : null;
       // the way on (a passage behind where the Hydra lay) opens once it's dead and the potion is his
       const exit = createExit(world, { dialogue, onExit: () => game.transition('stage-5'), enabled: () => hydra.state === 'dead' && !rage.onFloor });

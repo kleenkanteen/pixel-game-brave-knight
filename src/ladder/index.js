@@ -40,7 +40,7 @@ export function createLadder(world, { x, topY, prompts, dialogue, player }) {
     near = k.visible && k.onGround && !k.onLadder && Math.abs(cx - x) <= REACH && (atBottom || atTop);
     if (!near || !k.controlsEnabled || dialogue.isOpen()) return;
     if (k.mounted) {
-      prompts.show('Press v to dismount to climb', cx, k.y - k.height);
+      prompts.show('Press space to dismount to climb', cx, k.y - k.height, { interact: false }); // Space: the horse lets him off
       return;
     }
     prompts.show(atBottom ? 'Press space to climb ladder' : 'Press space to climb down', cx, k.y - k.height);
