@@ -166,6 +166,7 @@ export function createStage4() {
         }
       }
       s.abilities.update(dt); // first: an Arrow Storm click is never a "Next →" / Strike / shot
+      s.rage.updateClick(); // a click on the potion slot drinks it (never a Strike / shot)
       s.dialogue.update(dt); // then: its clicks never become a Strike / a shot
       s.player.update(dt);
       s.sword.update(dt);

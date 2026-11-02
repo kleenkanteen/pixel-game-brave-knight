@@ -34,6 +34,7 @@ const AURA = { outer: '#c8200e', mid: '#ff5a1a', inner: '#ffc23a', core: '#fff3b
  *          potions?:number}} opts  potions: doses carried in from earlier
  * @returns {{
  *   drop(x:number, fromY:number):void, readonly potions:number, readonly onFloor:boolean,
+ *   updateClick():void,  // before the sword/bow: a click (tap) on the potion slot is ours (drinks it)
  *   update(dt:number):void,
  *   renderBehind(ctx:CanvasRenderingContext2D):void,  // WORLD, before the player: the potion, the flame aura
  *   renderFront(ctx:CanvasRenderingContext2D):void,   // WORLD, after the player: embers, flame licks
@@ -49,6 +50,15 @@ export function createRage(world, { prompts, dialogue, battle = null, potions: s
   let flash = 0; // drink flash
   const embers = [];
   const motes = []; // red sparkles drifting up round a floating potion
+  let slotClicked = false; // the potion slot was clicked this tick (updateClick)
+
+  /** A click (tap) on the potion slot: swallow it (never a Strike / shot) and drink, as 4 does. */
+  function updateClick() {
+    const { input } = world;
+    const { x, y } = input.mouse;
+    slotClicked = everHad && input.wasClicked() && x >= HUD_X && x < HUD_X + SLOT && y >= HUD_Y && y < HUD_Y + SLOT;
+    if (slotClicked) input.consumeClick();
+  }
 
   /** float: rise out of the gore and hover there, bobbing in a red glow (else fall and bounce). */
   function drop(x, fromY, { float = false } = {}) {
@@ -94,7 +104,7 @@ export function createRage(world, { prompts, dialogue, battle = null, potions: s
       }
     }
 
-    if (doses > 0 && k.rageT <= 0 && k.controlsEnabled && !dialogue.isOpen() && world.input.wasPressed('potion')) {
+    if (doses > 0 && k.rageT <= 0 && k.controlsEnabled && !dialogue.isOpen() && (world.input.wasPressed('potion') || slotClicked)) {
       doses--;
       k.rageT = RAGE_TIME;
       flash = 0.5;
@@ -108,6 +118,7 @@ export function createRage(world, { prompts, dialogue, battle = null, potions: s
       for (let i = 0; i < 30; i++) ember(k, 90);
     }
 
+    slotClicked = false;
     if (k.rageT > 0 && k.visible) for (let i = 0; i < 3; i++) if (Math.random() < 0.7) ember(k, 30);
     for (let i = embers.length - 1; i >= 0; i--) {
       const e = embers[i];
@@ -258,6 +269,7 @@ export function createRage(world, { prompts, dialogue, battle = null, potions: s
 
   return {
     drop,
+    updateClick,
     get potions() {
       return doses;
     },
