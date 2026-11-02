@@ -39,6 +39,7 @@ export default [
   { click: [160, 140], wait: 150 },
   { click: [160, 140], wait: 150 },
   { click: [160, 140], wait: 150 },
+  { click: [160, 140], wait: 300, shot: 's4-12b-ability-tips' },
   { click: [160, 140], wait: 2200, shot: 's4-13-fight' },
   { label: 'walk up close', eval: `(${K}.x = 990, 'ok')`, wait: 1500 },
   { eval: godMode },

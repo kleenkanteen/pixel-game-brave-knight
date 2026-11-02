@@ -17,7 +17,9 @@ export default [
   { wait: 600, eval: `JSON.stringify({potions: ${W}.rage.potions})` },
   { until: `${W}.phase === 'talk'`, timeout: 8000, wait: 1200, shot: 'u-01-plaza-platforms' },
   ...clickThrough(8),
-  { until: `${W}.phase === 'fight'`, timeout: 8000, wait: 9000, shot: 'u-02-swarm' },
+  { until: `${W}.phase === 'fight'`, timeout: 8000, wait: 500 },
+  ...clickThrough(2), // the ability tips
+  { wait: 8500, shot: 'u-02-swarm' },
   { eval: `JSON.stringify({out: ${D}.minions, left: ${D}.minionsLeft})` },
   { label: 'on the perch', eval: `(${god}, ${K}.x = 1800, ${K}.y = -228, 'ok')`, wait: 500, shot: 'u-03-perch' },
   { eval: `JSON.stringify({x: ${K}.x + 8, y: ${K}.y})` },

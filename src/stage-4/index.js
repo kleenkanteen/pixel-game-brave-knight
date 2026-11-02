@@ -33,6 +33,14 @@ const VICTORY = [
   ['Mage: Looks like it dropped something.'],
 ];
 const POTION_TEXT = ['Potion of Rage!', 'Press 4 to drink it: 5x damage for 10 seconds, but it reduces your health by 20%.', 'Enough for two drinks.'];
+/** As the fight starts: how each ability works. */
+const ABILITY_TIPS = [
+  'Your abilities (press the number)',
+  '1 Lightning: press 1, click. Aim in its mouth!',
+  '2 Arrow Storm: press 2, click. 10 arrows fall.',
+  '3 Blessed Touch: heal 20%, 2x damage 5 s.',
+  'Recharge 10 s. Or click the boxes, top left.',
+];
 /** After two deaths to the Hydra: the way out (press 5). */
 const MERCY_TEXT = [
   "Seems like you're struggling to defeat the Hydra.",
@@ -141,9 +149,10 @@ export function createStage4() {
       const exit = createExit(world, { dialogue, onExit: () => game.transition('stage-5'), enabled: () => hydra.state === 'dead' && !rage.onFloor });
 
       world.events.on('dialogue:closed', ({ id }) => {
-        // the offer (after two deaths) comes first, then the objective
-        if (id === 'hydra' && mercy) dialogue.open('mercy', MERCY_TEXT, { align: 'center' });
-        else if (id === 'hydra' || id === 'mercy') objective.show('Objective', 'Defeat the Hydra', 4);
+        // the ability tips come first, then the offer (after two deaths), then the objective
+        if (id === 'hydra') dialogue.open('tips', ABILITY_TIPS, { align: 'center', heading: true });
+        else if (id === 'tips' && mercy) dialogue.open('mercy', MERCY_TEXT, { align: 'center' });
+        else if (id === 'tips' || id === 'mercy') objective.show('Objective', 'Defeat the Hydra', 4);
       });
       world.events.on('potion:picked', () => dialogue.open('potion', POTION_TEXT, { align: 'center', heading: true }));
 

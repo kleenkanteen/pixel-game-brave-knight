@@ -51,6 +51,15 @@ const BLACKOUT = { out: 1.2, hold: 0.6, in: 1.2 }; // s: the screen dims to blac
 const BALL_Y = -150; // the disco ball's centre (world y), over the middle of the plaza
 const RIDE_HINT = 'Press v to get off. The horse waits here.';
 const STAGE_POTIONS = 2; // doses of Rage he always starts Stage 5 with
+/** As the fight starts: how each ability (and the potion) works. */
+const ABILITY_TIPS = [
+  'Your abilities (press the number)',
+  '1 Lightning: press 1, click. Counts as 4 hits!',
+  '2 Arrow Storm: press 2, click. 10 arrows fall.',
+  '3 Blessed Touch: heal 20%, 2x damage 5 s.',
+  '4 Potion of Rage: 5x damage 10 s, -20% health.',
+  'Recharge 10 s. Or click the boxes, top left.',
+];
 /** After two deaths to the Dark Lord: the way out (press 5). */
 const MERCY_TEXT = [
   "Seems like you're struggling with the Dark Lord.",
@@ -190,9 +199,8 @@ export function createStage5() {
           world.events.emit('boss-phase-2');
           setPhase('fight');
           battle.setBoss(darkLord.boss);
-          // the offer (after two deaths) comes first, then the objective
-          if ((carry.darkLordDeaths ?? 0) >= 2) dialogue.open('mercy', MERCY_TEXT, { align: 'center' });
-          else objective.show('Objective', 'Defeat the Dark Lord', 4);
+          // the ability tips come first, then the offer (after two deaths), then the objective
+          dialogue.open('tips', ABILITY_TIPS, { align: 'center', heading: true });
         },
         onDefeated: () => {
           world.events.emit('boss-dead');
@@ -219,7 +227,8 @@ export function createStage5() {
           blackT = 0;
           prepareScenery({ party: true }); // build the bare plaza now, while it's still bright
         }
-        if (id === 'mercy') objective.show('Objective', 'Defeat the Dark Lord', 4);
+        if (id === 'tips' && (game.carry.darkLordDeaths ?? 0) >= 2) dialogue.open('mercy', MERCY_TEXT, { align: 'center' });
+        else if (id === 'tips' || id === 'mercy') objective.show('Objective', 'Defeat the Dark Lord', 4);
         if (id === 'dark-lord') {
           setPhase('transform');
           darkLord.transform();

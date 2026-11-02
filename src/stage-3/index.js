@@ -23,9 +23,9 @@ const VICTORY = [
 ];
 /** After the victory: one panel per ability, each unlocked the moment its panel opens. */
 const UNLOCKS = [
-  ['New abilities unlocked!', 'Press 1: Lightning Strike', 'The Mage calls down lightning.', 'Press 1, then click where it should strike.', 'Recharges every 10 seconds.'],
-  ['Press 2: Arrow Storm', 'The Archer rains 10 arrows on an area.', 'Press 2, then click where they should fall.'],
-  ['Press 3: Blessed Touch', 'The Holy Knight heals everyone by 20%', 'and doubles all damage for 5 seconds.'],
+  ['New abilities unlocked!', 'Press 1: Lightning Strike', 'The Mage calls down lightning.', 'Press 1, then click where it should strike.', 'Recharges every 10 seconds.', 'Try it now!'],
+  ['Press 2: Arrow Storm', 'The Archer rains 10 arrows on an area.', 'Press 2, then click where they should fall.', 'Try it now!'],
+  ['Press 3: Blessed Touch', 'The Holy Knight heals everyone by 20%', 'and doubles all damage for 5 seconds.', 'Try it now!'],
 ];
 
 /**

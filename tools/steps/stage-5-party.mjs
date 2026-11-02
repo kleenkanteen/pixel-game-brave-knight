@@ -17,6 +17,7 @@ export default [
   { until: `${W}.phase === 'talk'`, timeout: 8000, wait: 1500 },
   ...clickThrough(8),
   { until: `${W}.phase === 'fight'`, timeout: 8000, wait: 500 },
+  ...clickThrough(2), // the ability tips
   { label: 'space with nothing near: a jump', key: 'Space', wait: 120, eval: `JSON.stringify({onGround: ${K}.onGround, vy: Math.round(${K}.vy)})` },
   { label: 'bring him down', eval: `(${god}, ${D}.forceHurt(${D}.hp), 'ok')`, wait: 1200 },
   { until: `${D}.state === 'dead'`, timeout: 8000 },
