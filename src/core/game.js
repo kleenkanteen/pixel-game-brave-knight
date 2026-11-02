@@ -28,6 +28,7 @@ export function createGame({ canvas, ctx }) {
      *   weapon: the weapon in hand ('sword' | 'bow' | null)
      *   abilities: how many of the party's abilities are unlocked (0–3, abilities/ slice)
      *   potions: Potions of Rage left (rage/ slice; the Hydra drops one with 2 doses)
+     *   hydraDeaths / darkLordDeaths: times he fell fighting that boss (from 2 on, 5 kills it)
      *   checkpoint: where a Stage starts over from after a Restart (Stage 5: 'plaza'), else absent
      */
     carry: { horse: null, sword: false, bow: false, weapon: null, abilities: 0, potions: 0 },

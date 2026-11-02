@@ -39,6 +39,8 @@ src/
                            scenery.js (sky, moon, clouds, moonlight tint, gates, fires) +
                            scenery/ (world.js: pre-rendered base + glow layers; paint.js: castle
                            painters); restarts at the plaza (carry.checkpoint)
+                           Both boss fights count his deaths (carry.hydraDeaths / darkLordDeaths): from
+                           the third try on a popup offers "Press 5 to kill it now" (input action `mercy`)
   battle/                  allies (Archer, Mage, Holy Knight) vs monsters (Zombies, Werewolf, Dark
                            Mage), and the cave monsters (Cave Crawlers, Rock Golems, Pterodactyls):
                            AI, health bars, damage, fireballs + warning vortex, particles; hooks the

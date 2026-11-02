@@ -92,6 +92,7 @@ const KEYS = {
   Digit2: { key: '2', keyCode: 50 },
   Digit3: { key: '3', keyCode: 51 },
   Digit4: { key: '4', keyCode: 52 },
+  Digit5: { key: '5', keyCode: 53 },
   Digit8: { key: '8', keyCode: 56 },
   Escape: { key: 'Escape', keyCode: 27 },
 };

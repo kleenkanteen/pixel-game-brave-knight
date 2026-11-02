@@ -6,6 +6,7 @@ const NUMBERS = [
   ['2', 'ability2', 'sm'],
   ['3', 'ability3', 'sm'],
   ['4', 'potion', 'sm'],
+  ['5', 'mercy', 'sm'],
 ];
 const ACTIONS = [
   ['Q', 'switch', ''],

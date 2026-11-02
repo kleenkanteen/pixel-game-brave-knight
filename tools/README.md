@@ -17,6 +17,7 @@ npm run shoot -- tools/steps/stage-5-gates.mjs  # Stage 4's exit → 5, riding u
 npm run shoot -- tools/steps/stage-5-ultimate.mjs  # the plaza: 2 potions, 23 platforms, the Shadow swarm, the ultimate
 npm run shoot -- tools/steps/stage-5-reptiles.mjs  # close-ups of the drawbridge Reptilians: crouch, bite, goo
 npm run shoot -- tools/steps/stage-5-party.mjs  # the ending: Dark Lord down, the party talk, blackout, the disco
+npm run shoot -- tools/steps/mercy.mjs  # 2 deaths to a boss: the "Press 5" offer, the Hydra explodes, the Dark Lord dies
 npm run shoot -- tools/steps/skip.mjs  # easter egg: 8 rides on to the next Stage, mounted
 ```
 
@@ -36,7 +37,7 @@ A steps file default-exports an array; each step may combine (applied in this or
 | `label` | printed to the terminal |
 | `move: [x, y]` / `click: [x, y]` | mouse, in **internal 320×180 game pixels** |
 | `press: [x, y]` / `drag: [x, y]` / `release: true` | hold the left button, drag with it held, let go (the bow's aim) |
-| `key: 'Space'` | tap a key (`Space`, `ArrowLeft/Right/Up`, `KeyA/D/W/B/Q/V`, `Digit1/2/3/4/8`, `Escape`) |
+| `key: 'Space'` | tap a key (`Space`, `ArrowLeft/Right/Up`, `KeyA/D/W/B/Q/V`, `Digit1/2/3/4/5/8`, `Escape`) |
 | `down` / `up` | press / release without waiting |
 | `hold: 'ArrowRight', ms` | hold for `ms`, or with `until` until the expression is truthy |
 | `until: 'js expr'` | (alone) wait until truthy, `timeout` ms (default 10000) |

@@ -13,6 +13,7 @@ const BINDINGS = {
   ability2: ['Digit2', 'Numpad2'],
   ability3: ['Digit3', 'Numpad3'],
   potion: ['Digit4', 'Numpad4'], // drink a Potion of Rage
+  mercy: ['Digit5', 'Numpad5'], // after two deaths to a boss: kill it now
   cancel: ['Escape'],
   skip: ['Digit8', 'Numpad8'], // easter egg: ride straight on to the next Stage
   slayBoss: ['Digit9', 'Numpad9'], // hack: the Dark Lord (and his minions) die on the spot
@@ -23,7 +24,7 @@ const PREVENT = new Set(['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDo
 /**
  * Keyboard + mouse input in game terms.
  * - isDown(action) / wasPressed(action) for 'left' | 'right' | 'jump' | 'interact' | 'dismount' | 'bow' | 'switch' |
- *   'ability1' | 'ability2' | 'ability3' | 'potion' | 'cancel' | 'skip' | 'slayBoss'
+ *   'ability1' | 'ability2' | 'ability3' | 'potion' | 'mercy' | 'cancel' | 'skip' | 'slayBoss'
  * - wasClicked() — a left click happened since the last update tick;
  *   consumeClick() lets a slice (e.g. Dialogue) swallow it so later slices see no click.
  * - isMouseDown() — the left button is held; wasReleased() — it went up since the last tick

@@ -33,6 +33,12 @@ const VICTORY = [
   ['Mage: Looks like it dropped something.'],
 ];
 const POTION_TEXT = ['Potion of Rage!', 'Press 4 to drink it: 5x damage for 10 seconds, but it reduces your health by 20%.', 'Enough for two drinks.'];
+/** After two deaths to the Hydra: the way out (press 5). */
+const MERCY_TEXT = [
+  "Seems like you're struggling to defeat the Hydra.",
+  'Blessed Touch (3) and Lightning Strike (1) are key to defeating it.',
+  'Press 5 to kill it now.',
+];
 const CAMERA_LEAD = 116; // ≤ 120 keeps him at least 40 px in from the left edge
 /** The allies walk in behind him, a little apart. */
 const ALLY_SPAWN = { archer: -40, mage: -64, holy: -88 };
@@ -55,6 +61,7 @@ export function createStage4() {
   let s = null;
   let game = null;
   let arrived = false;
+  let mercy = false; // he fell to the Hydra twice already: 5 kills it
   let lead = 0; // px the camera looks ahead of him, towards the Hydra once it's awake
 
   return defineStage({
@@ -102,7 +109,8 @@ export function createStage4() {
         floorAt,
         ledge: LEDGE,
         onWon: () => dialogue.play('victory', VICTORY),
-        onRestart: () => game.restart(),
+        // fell to the Hydra: count it (from the third try on, 5 kills it)
+        onRestart: () => game.restart(hydraAwake() ? (c) => (c.hydraDeaths = (c.hydraDeaths ?? 0) + 1) : undefined),
       });
       const rage = createRage(world, { prompts, dialogue, battle, potions: carry.potions ?? 0 });
       const hydra = createHydra(world, {
@@ -120,6 +128,8 @@ export function createStage4() {
         },
       });
       battle.setBoss(hydra.boss);
+      const hydraAwake = () => hydra.state === 'wake' || hydra.state === 'fight';
+      mercy = (carry.hydraDeaths ?? 0) >= 2;
       const abilities = createAbilities(world, { battle, unlocked: Math.max(carry.abilities ?? 0, 3) });
       const sign = createSign(world, { x: SIGN_X, text: SIGN_TEXT, reply: SIGN_REPLY, prompts, dialogue });
       const ladder = createLadder(world, { x: LEDGE.ladderX, topY: LEDGE.y, prompts, dialogue, player });
@@ -131,7 +141,9 @@ export function createStage4() {
       const exit = createExit(world, { dialogue, onExit: () => game.transition('stage-5'), enabled: () => hydra.state === 'dead' && !rage.onFloor });
 
       world.events.on('dialogue:closed', ({ id }) => {
-        if (id === 'hydra') objective.show('Objective', 'Defeat the Hydra', 4);
+        // the offer (after two deaths) comes first, then the objective
+        if (id === 'hydra' && mercy) dialogue.open('mercy', MERCY_TEXT, { align: 'center' });
+        else if (id === 'hydra' || id === 'mercy') objective.show('Objective', 'Defeat the Hydra', 4);
       });
       world.events.on('potion:picked', () => dialogue.open('potion', POTION_TEXT, { align: 'center', heading: true }));
 
@@ -159,6 +171,7 @@ export function createStage4() {
       s.sword.update(dt);
       s.bow.update(dt);
       s.battle.update(dt); // after the sword: resolves this tick's Strike
+      if (mercy && world.input.wasPressed('mercy') && !s.dialogue.isOpen()) s.hydra.forceDie(); // it explodes
       s.hydra.update(dt);
       s.sign.update(dt);
       s.ladder.update(dt);

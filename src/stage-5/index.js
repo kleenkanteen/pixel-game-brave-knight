@@ -51,6 +51,12 @@ const BLACKOUT = { out: 1.2, hold: 0.6, in: 1.2 }; // s: the screen dims to blac
 const BALL_Y = -150; // the disco ball's centre (world y), over the middle of the plaza
 const RIDE_HINT = 'Press v to get off. The horse waits here.';
 const STAGE_POTIONS = 2; // doses of Rage he always starts Stage 5 with
+/** After two deaths to the Dark Lord: the way out (press 5). */
+const MERCY_TEXT = [
+  "Seems like you're struggling with the Dark Lord.",
+  'Blessed Touch (3) and Lightning Strike (1) are key to defeating him.',
+  'Press 5 to kill him now.',
+];
 const TALK_Y = 66; // the Dark Lord's conversation sits below his balcony (HUD px)
 
 let buffer = null; // the world, drawn at the view's size (up to 960×540), then scaled onto the canvas
@@ -161,7 +167,13 @@ export function createStage5() {
           setPhase('guards-talk');
           dialogue.play('guards', GUARDS_DOWN);
         },
-        onRestart: () => (inPlaza() ? game.restart((c) => (c.checkpoint = 'plaza')) : game.restart()),
+        onRestart: () =>
+          inPlaza()
+            ? game.restart((c) => {
+                c.checkpoint = 'plaza';
+                if (phase === 'fight') c.darkLordDeaths = (c.darkLordDeaths ?? 0) + 1; // fell to him: from the third try on, 5 kills him
+              })
+            : game.restart(),
       });
       const rage = createRage(world, { prompts, dialogue, battle, potions: STAGE_POTIONS }); // always two doses here (also on a restart)
       const darkLord = createDarkLord(world, {
@@ -178,7 +190,9 @@ export function createStage5() {
           world.events.emit('boss-phase-2');
           setPhase('fight');
           battle.setBoss(darkLord.boss);
-          objective.show('Objective', 'Defeat the Dark Lord', 4);
+          // the offer (after two deaths) comes first, then the objective
+          if ((carry.darkLordDeaths ?? 0) >= 2) dialogue.open('mercy', MERCY_TEXT, { align: 'center' });
+          else objective.show('Objective', 'Defeat the Dark Lord', 4);
         },
         onDefeated: () => {
           world.events.emit('boss-dead');
@@ -205,6 +219,7 @@ export function createStage5() {
           blackT = 0;
           prepareScenery({ party: true }); // build the bare plaza now, while it's still bright
         }
+        if (id === 'mercy') objective.show('Objective', 'Defeat the Dark Lord', 4);
         if (id === 'dark-lord') {
           setPhase('transform');
           darkLord.transform();
@@ -260,7 +275,8 @@ export function createStage5() {
       s.sword.update(dt);
       s.bow.update(dt);
       s.battle.update(dt); // after the sword: resolves this tick's Strike
-      if (world.input.wasPressed('slayBoss')) {
+      const mercyKill = phase === 'fight' && (game.carry.darkLordDeaths ?? 0) >= 2 && world.input.wasPressed('mercy') && !s.dialogue.isOpen();
+      if (world.input.wasPressed('slayBoss') || mercyKill) {
         if (phase === 'approach') {
           // hack: the drawbridge guards all drop; the battle's win opens the gate as usual
           for (const e of s.battle.monsters) s.battle.slay(e);
