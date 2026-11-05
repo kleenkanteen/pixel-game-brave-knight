@@ -374,6 +374,8 @@ export function createParty(world, { x: CX, ballY: BY, top: TOP, credit = '' }) 
       if (credit) {
         withAlpha(u, 0.75, () => drawText(u, credit, Math.round(VIEW_W / 2 - measureText(credit) / 2), 40, { color: '#c8c0d8', outline: '#14101c' }));
       }
+      const ps = "p.s.: I'm looking for US eng roles rn, see my website";
+      withAlpha(u, 0.8, () => drawText(u, ps, Math.round(VIEW_W / 2 - measureText(ps) / 2), 170, { color: '#c8c0d8', outline: '#14101c' }));
     });
   }
 
